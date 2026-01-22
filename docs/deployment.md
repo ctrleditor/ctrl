@@ -1,362 +1,399 @@
 # Deployment Guide
 
-## Distribution Model
+## Environments
 
-CtrlSpec is distributed via GitHub as an open source project. There are no traditional "environments" (dev/staging/prod). Instead:
+Ctrl is a local-first CLI tool, not a server application. Distribution happens via two channels:
 
-- **Development happens on `main` branch** (or feature branches)
-- **Releases are tagged** with semantic versions (v1.0.0, v1.1.0, v2.0.0)
-- **Users install via GitHub** (either direct clone or curl script download)
-- **No build/compile step** - templates and scripts are deployed as-is
+### Development
+- **Setup:** `bun install && bun run dev`
+- **Purpose:** Local development and testing
+- **Testing:** Run `bun test` locally before pushing
+- **Plugin testing**: Activate test plugins from `plugins/` directory
 
-## Release Process
+### Staging (Pre-release)
+- **Channel:** GitHub Releases (pre-release tag)
+- **Version:** `v0.x.0-rc.1` tags
+- **Distribution:** npm pre-release (`npm install -g ctrl@rc`) or binary downloads
+- **Purpose:** Community testing before stable release
+- **Who**: Early adopters, plugin developers
 
-### When to Release
+### Production (Stable Release)
+- **Channel:** GitHub Releases (stable tag)
+- **Distribution:**
+  - npm: `npm install -g ctrl` (latest stable)
+  - Binaries: macOS, Linux, Windows (WSL) from GitHub Releases
+  - Homebrew: `brew install ctrl` (post-MVP)
+- **Version**: `v1.0.0`, `v1.1.0`, etc. (semver)
+- **Purpose:** End users, production use
 
-**Create a new release when:**
-- Adding new features (MINOR version bump)
-- Fixing bugs (PATCH version bump)
-- Making breaking changes (MAJOR version bump)
-- Significant documentation improvements
-- Community-requested changes
+### Hosted Version (Post-MVP)
+- **Cloud:** Ctrl running in cloud (Modo Ventures)
+- **Not covered in MVP**; documented for future reference
 
-**Do NOT release for:**
-- Typo fixes in template examples (batch with other changes)
-- Comment-only changes
-- CI/CD configuration changes (internal only)
+## Deployment Process
 
-### Version Numbering (Semantic Versioning)
+### Automated Deployment (CI/CD)
 
-Follow [Semantic Versioning](https://semver.org/):
+**GitHub Actions Pipeline:**
 
-- **MAJOR.MINOR.PATCH** (e.g., 1.2.3)
-- **MAJOR**: Breaking changes to install script, symlink structure, or template sections that users depend on
-- **MINOR**: New features, new templates, new MCP integrations (backwards compatible)
-- **PATCH**: Bug fixes, template clarifications, security fixes
+```yaml
+# .github/workflows/release.yml
+name: Build & Release
+on:
+  push:
+    tags: [v*]
+  push:
+    branches: [main]
 
-**Examples:**
-- `v0.1.0` → `v0.2.0`: Add support for new AI tool → MINOR
-- `v0.2.0` → `v0.2.1`: Fix symlink on Windows WSL → PATCH
-- `v0.2.1` → `v1.0.0`: Redesign install script → MAJOR
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: oven-sh/setup-bun@v1
+      - run: bun install
+      - run: bun test
 
-### Pre-Release Checklist
+  build:
+    needs: test
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: oven-sh/setup-bun@v1
+      - run: bun install
+      - run: bun run build
+      - run: bun run build:binary  # Create standalone binary
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ctrl-${{ matrix.os }}
+          path: dist/
 
-Before creating a GitHub release:
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/download-artifact@v3
+      - name: Publish to npm
+        run: npm publish
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ctrl-*/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
 
-- [ ] All tests passing locally (run `bash tests/install.test.sh`)
-- [ ] Tests passing in CI (GitHub Actions green)
+**Trigger workflow:**
+- Tag a commit: `git tag v0.1.0 && git push origin v0.1.0`
+- GitHub Actions automatically:
+  1. Runs tests
+  2. Builds binaries (macOS, Linux)
+  3. Publishes to npm registry
+  4. Creates GitHub Release with binaries
+
+### Manual Deployment (Emergency)
+
+If CI/CD fails and you need to release manually:
+
+```bash
+# Build locally
+bun run build
+bun run build:binary
+
+# Publish to npm
+npm publish
+
+# Create GitHub release manually via web UI
+# Upload binaries from dist/
+```
+
+## Pre-Release Checklist
+
+Before creating a release tag (which triggers CI/CD → production):
+
+- [ ] All tests passing (`bun test`)
 - [ ] Code reviewed and merged to `main`
-- [ ] Version number decided (major/minor/patch)
+- [ ] Version bumped in `package.json` (semver)
 - [ ] `CHANGELOG.md` updated with release notes
-- [ ] Commit message includes decision context (if applicable)
-- [ ] Templates validated for completeness
-- [ ] Install script tested manually on Linux and macOS (or wait for CI)
-- [ ] Backwards compatibility verified (old installations still work)
+- [ ] Breaking changes clearly documented
+- [ ] Plugin API changes reflected in docs
+- [ ] Demo tested with released version (manual `bun run dev`)
+- [ ] Binaries tested locally (`bun run build:binary && ./dist/ctrl`)
+- [ ] Git tag created: `git tag vX.Y.Z`
+- [ ] Commit message includes migration/breaking change notes (if any)
 
-### How to Create a Release
+## Infrastructure
 
-#### Step 1: Update Version and Changelog
+Ctrl is a **local-first CLI tool**, not a server application. Infrastructure is minimal:
 
-Update version in relevant files:
-```bash
-# Update version in files (if version file exists)
-# Update CHANGELOG.md with changes for this release
-# Commit changes
-git add CHANGELOG.md [version files]
-git commit -m "chore: bump version to v1.2.3"
-```
+### Distribution
+- **npm package:** Published to [npmjs.com](https://npmjs.com)
+- **GitHub Releases:** Binaries (macOS, Linux) attached to releases
+- **Future: Homebrew:** Post-MVP, add formula for `brew install ctrl`
 
-#### Step 2: Create Git Tag
+### Build Infrastructure
+- **GitHub Actions:** Free CI/CD for testing, building, publishing
+- **Bun binary:** Installed as dev dependency via `package.json`
+- **Build artifact storage:** GitHub Releases (free)
 
-```bash
-git tag -a v1.2.3 -m "Release v1.2.3: Add support for Fathom MCP
+### Optional: Hosted Version (Post-MVP, Modo Ventures)
+- **Hosting:** Undecided (AWS, Vercel, custom)
+- **Authentication:** OAuth2 (future)
+- **Database:** PostgreSQL (for user accounts, team configs)
+- **Storage:** S3 for user files (encrypted)
+- **Not part of MVP**
 
-### Features
-- Add Fathom MCP server configuration
-- Improve symlink handling on Windows
-
-### Bug Fixes
-- Fix template spacing issues
-
-See CHANGELOG.md for full details."
-```
-
-#### Step 3: Push and Create GitHub Release
-
-```bash
-git push origin main
-git push origin v1.2.3
-```
-
-Then create release on GitHub:
-- Go to https://github.com/ctrleditor/ctrlspec/releases/new
-- Select the tag you just pushed
-- Title: "Release v1.2.3"
-- Description: Copy from CHANGELOG.md
-- Mark as "latest release" (uncheck if pre-release)
-- Publish
-
-#### Step 4: Verify Release
-
-- [ ] GitHub release page looks correct
-- [ ] Tag appears in releases
-- [ ] raw.githubusercontent.com URL works (test after ~30 seconds delay)
-  ```bash
-  curl -s https://raw.githubusercontent.com/ctrleditor/ctrlspec/v1.2.3/install.sh | head -5
-  ```
-- [ ] Installation instructions still point to correct version or `main`
-
-## Distribution Channels
-
-### Primary: GitHub Raw URL
-
-```bash
-# Always points to latest version on main
-curl -fsSL https://raw.githubusercontent.com/ctrleditor/ctrlspec/main/install.sh | sh
-
-# Pin to specific version
-curl -fsSL https://raw.githubusercontent.com/ctrleditor/ctrlspec/v1.2.3/install.sh | sh
-```
-
-**Advantages:**
-- Automatic updates on `main`
-- Simple one-line installation
-- CDN-backed (fast worldwide)
-
-**Disadvantages:**
-- Always bleeding edge if not pinned
-- Requires network access
-
-### Secondary: Direct Clone
-
-```bash
-git clone https://github.com/ctrleditor/ctrlspec.git
-cd ctrlspec
-bash install.sh
-```
-
-**Advantages:**
-- Full version control history
-- Can inspect scripts before running
-- Works offline after clone
-
-**Disadvantages:**
-- Requires git
-- More steps for users
-
-### Future: Package Managers
-
-Could eventually distribute via:
-- Homebrew (macOS/Linux)
-- AUR (Arch Linux)
-- CocoaPods (unlikely, not applicable)
-
-**Not planned currently** - focus on simplicity.
-
-## Backwards Compatibility
-
-**Critical: Never break existing installations**
-
-When making changes:
-
-1. **Install script** - Ensure old installations still work
-   - Don't change symlink paths without migration logic
-   - Don't require new dependencies without fallback
-   - Handle both old and new configurations
-
-2. **Templates** - Can be improved but not restructured
-   - Can add new sections (users won't be affected)
-   - Don't remove or rename sections (breaks documentation navigation)
-   - Can improve examples and descriptions
-
-3. **MCP configuration** - New integrations must be disabled by default
-   - Don't change existing server configurations
-   - New servers added with `"enabled": false`
-
-**If breaking change is necessary:**
-- Requires MAJOR version bump
-- Document migration path in release notes
-- Consider providing migration script
-- Announce prominently in README
-
-## Rollback Procedure
-
-### If Release Breaks Existing Installations
-
-**Immediate:**
-1. Create new release with version bump (v1.2.4)
-2. Fix the issue
-3. Announce in GitHub issues/discussions
-
-**Users affected:**
-- Those using `main` will get fix immediately (on next install or via `git pull`)
-- Those pinned to broken version `v1.2.3` need to manually update or re-run with `main`
-
-**Prevent re-occurrence:**
-- Add test for the broken scenario
-- Review changes more carefully
-
-### If Release Breaks Tests
-
-If release passes tests but breaks real-world installations:
-
-1. Analyze failure reports from community
-2. Create test case that reproduces issue
-3. Fix in new PATCH release
-4. Release quickly
-
-## Infrastructure & Distribution
-
-### Hosting
-- **GitHub repository**: Source of truth
-- **GitHub Releases**: Release packages and notes
-- **raw.githubusercontent.com**: CDN-backed template delivery
-
-### Backups & Continuity
-- GitHub repo is backed up to `ctrleditor/ctrlspec` (redundancy via GitHub)
-- Releases are immutable once published
-- Community can fork if needed
-
-### Monitoring
-- GitHub Actions runs tests on every push
-- Community reports issues via GitHub Issues
-- No external monitoring required (it's static content)
+### No Required Services for MVP
+- No database (local editor, no sync)
+- No real-time server (local-only)
+- No email service (no accounts in MVP)
+- No CDN (binaries are small, GitHub CDN is fine)
 
 ## Configuration
 
-### Environment Variables
+### Environment Variables (MVP: Minimal)
 
-CtrlSpec doesn't use environment variables for installation. However:
-
-**For MCP integration, users set:**
+**For users running Ctrl:**
 ```bash
-export FATHOM_API_KEY="your-api-key"
+# Required (user sets this)
+ANTHROPIC_API_KEY=sk-ant-...     # Claude API key
+# or
+OPENAI_API_KEY=sk-...             # Alternative AI provider
+
+# Optional
+CTRL_CONFIG_DIR=~/.config/ctrl             # Where config files live (default: ~/.config/ctrl)
+CTRL_PLUGIN_DIR=~/.config/ctrl/plugins     # Where plugins are installed
 ```
 
-**For testing:**
+**For developers (building Ctrl):**
 ```bash
-SKIP_TESTS=1 bash install.sh  # Skip tests in install
+# .env.development (git ignored)
+ANTHROPIC_API_KEY=sk-ant-...     # For testing AI features
 ```
 
-### No Secrets Needed
+### Secrets Management
 
-- CtrlSpec doesn't store secrets
-- No API keys, tokens, or credentials in repo
-- MCP servers configured by users with their own credentials
+Ctrl is **local-first**; secrets stay on user's machine:
+- Users provide their own API keys
+- Keys stored in OS credential storage (macOS Keychain, Linux secret-tool, Windows Credential Manager)
+- Config files are plain TOML; users shouldn't commit `.env` files
+- No server-side secrets in MVP
 
-## Testing Before Release
+**For CI/CD:**
+- GitHub Secrets: Only `NPM_TOKEN` for publishing
+- No production credentials needed (local tool)
 
-### Local Testing
+## Database Migrations
 
+**N/A for MVP.** Ctrl is a local editor, not a server application.
+
+If/when Modo Ventures hosted version is built:
+- Migrations would be handled server-side
+- Not part of MVP, not documented here yet
+
+## Configuration Management
+
+### User Configuration
+Users configure Ctrl via TOML files in `~/.config/ctrl/`:
+- `config.toml` - Editor settings
+- `keymaps.toml` - Keybindings
+- `ai.toml` - AI configuration
+- `plugins.toml` - Plugin settings
+
+Users can version control these:
 ```bash
-# Run all tests
-bash tests/install.test.sh
-
-# Manual installation on test machine
-mkdir /tmp/test-ctrlspec
-cd /tmp/test-ctrlspec
-bash /path/to/install.sh
-ls -la CLAUDE.md  # Verify symlink
-
-# Verify all templates copied
-ls -la docs/
+ln -s ~/dotfiles/ctrl ~/.config/ctrl
+# Or symlink individual files
 ```
 
-### CI/CD Testing
+### Release Configuration
+No per-release configuration changes. Version changes are:
+- Git tag: `git tag vX.Y.Z`
+- Package.json version: `"version": "X.Y.Z"`
+- npm publish uses package.json version automatically
 
-GitHub Actions automatically runs on:
-- Every push to main
-- Every pull request
-- Manual trigger via GitHub UI
+## Rollback Procedure
 
-**Platforms:**
-- Ubuntu 20.04 (Linux)
-- macOS 11 (macOS)
-- Multiple bash versions (3.2, 4.0, 5.0)
+For a CLI tool, "rollback" means users downgrade to a previous version:
 
-### Community Testing
+### When to Rollback
+- Critical bug in released version
+- Security vulnerability discovered
+- Plugin system broken in new release
+- User data corruption
 
-Before major releases:
-- Open issue asking for testing help
-- Document what to test
-- Collect feedback
+### How to Rollback
 
-## Post-Release
+**Users downgrade:**
+```bash
+# Back to previous version (NPM)
+npm install -g ctrl@0.5.0
 
-### Announcement
+# Or download previous binary from GitHub Releases
+```
 
-For significant releases:
-- Post in relevant forums/communities
-- Update README.md if needed
-- Share on social media (if applicable)
+**Core team rolls back release:**
+1. If bug found immediately after npm publish:
+   ```bash
+   npm deprecate ctrl@0.6.0 "Critical bug - use 0.5.0"
+   ```
+2. Create fix in new branch
+3. Create new release (0.6.1)
 
-### Monitoring
+**If data corruption occurred:**
+- Ctrl is a text editor; user data = their files
+- Ctrl doesn't corrupt files (that would be catastrophic bug)
+- Users can restore from git/backup as usual
 
-After release:
-- Monitor GitHub Issues for bug reports
-- Respond to user questions
-- Fix critical issues immediately
+### Rollback Prevention
+- **Beta releases**: Tag as `v0.6.0-rc.1` before stable
+- **Early adopter testing**: Post in GitHub issues asking for feedback
+- **Semantic versioning**: Breaking changes only in major versions
 
-### Documentation
+## Health & Monitoring
 
-- Update docs/ directory if docs template changed
-- Update llm.md if development guidelines changed
-- Update README.md if installation changed
+Ctrl is a local CLI tool, not a server. No uptime to monitor.
+
+### What Users Should Test After Installation
+```bash
+# Verify installation
+ctrl --version
+
+# Verify AI connection (optional)
+# Users test this manually by opening a chat panel
+
+# No automated health checks needed
+```
+
+### Plugin Health (Post-MVP)
+Future: Plugin registry might have health checks:
+- Plugin loads without crashing
+- Plugin's declared permissions are accurate
+- Plugin doesn't have known security issues
+
+## Release Schedule
+
+### Release Cadence
+- **Prototype:** Weekly or as-needed (not a regular release)
+- **MVP (0.x):** Every 2 weeks (0.1.0, 0.2.0, etc.)
+- **v1.0+:** Monthly or as-needed
+
+### Announcement & Rollout
+- Tag commit: `git tag v0.2.0`
+- GitHub Actions builds & publishes automatically
+- Announce in:
+  - GitHub Releases page (release notes)
+  - Twitter/social media
+  - Dev communities (HN, Reddit, etc. for major releases)
+  - Plugin developers (API changes)
+
+### No Maintenance Windows
+- No servers to patch
+- Releases are opt-in (users upgrade when ready)
+- Can publish anytime
+- No scheduled downtime
+
+## Post-Release Verification
+
+### Manual Testing (Before Release)
+```bash
+# 1. Build locally and test
+bun run build
+bun run build:binary
+./dist/ctrl --version
+
+# 2. Test core features
+./dist/ctrl /tmp/test.ts
+# ... manual editing, modal testing, plugin loading
+
+# 3. Test AI features
+# ... open chat panel, test completions
+
+# 4. Test plugin system
+# ... load a test plugin from plugins/
+
+# 5. Smoke test on different OS
+# ... test binary on macOS, Linux, or in WSL
+```
+
+### Monitoring Release Health
+- **GitHub Releases:** Check download counts (week after release)
+- **GitHub Issues:** Watch for bug reports
+- **Twitter/social:** Monitor response to announcement
+- **Email**: Respond to user feedback quickly
+
+### Rollback Decision
+If critical bug reported within 1 hour of release:
+- Publish `npm deprecate ctrl@X.Y.Z "Critical bug, use X.Y.(Z-1)"`
+- Fix bug and publish X.Y.(Z+1)
+- Announce fix in GitHub issue
 
 ## Troubleshooting
 
-### Release Didn't Appear on GitHub
+### Common Issues
 
-**Possible causes:**
-- Tag not pushed (`git push origin v1.2.3`)
-- GitHub Actions still processing
-- Tag already exists (delete and recreate)
+**Issue:** Binary doesn't run on Linux
+- **Cause:** `openTUI` dependency issue, glibc mismatch
+- **Solution:** Build binary on target platform in CI, use musl libc
 
-**Solution:**
-```bash
-# Verify tag exists locally
-git tag -l v1.2.3
+**Issue:** npm install fails
+- **Cause:** Network issue, registry down
+- **Solution:** Retry, check npm registry status
 
-# Verify pushed to GitHub
-git ls-remote --tags origin v1.2.3
+**Issue:** Plugin loads but crashes editor
+- **Cause:** Plugin has bug, plugin API misuse
+- **Solution:** Load plugin in isolate first (sandbox test), check permissions
 
-# Manually create release if tag exists but release doesn't
-# Go to https://github.com/ctrleditor/ctrlspec/releases/new
-```
+### Getting Help
+- Check GitHub Issues for similar problems
+- Create new issue with:
+  - Output of `ctrl --version`
+  - Steps to reproduce
+  - Error messages
+  - System info (macOS/Linux, version)
 
-### Install Script URL Not Working
+## Access & Permissions
 
-**Possible causes:**
-- Waiting for GitHub CDN to cache (up to 5 minutes)
-- Wrong branch/tag name
-- File was deleted
+### Publishing Access
+- **npm package:** `@erikperkins` account (owner)
+- **GitHub Releases:** Anyone with `write` access to repo
+- **npm token:** Stored in GitHub Secrets (NPM_TOKEN)
 
-**Solution:**
-```bash
-# Test raw URL directly
-curl -I https://raw.githubusercontent.com/ctrleditor/ctrlspec/v1.2.3/install.sh
+### Future: Plugin Registry Access
+- Registry hosted TBD (GitHub, custom, npm scope)
+- Plugin authors submit PRs or use registry API
 
-# Check GitHub UI for file
-# https://github.com/ctrleditor/ctrlspec/blob/v1.2.3/install.sh
-```
+## Compliance & Auditing
 
-### Users Getting Old Version
+### Change Tracking
+- All releases tagged in Git
+- Release notes in GitHub Releases
+- Commits linked in release notes
+- `CHANGELOG.md` documents all changes
 
-**Possible causes:**
-- Using old URL with `main` branch (getting old main, not latest release)
-- Pinned to old version tag
-- Local cache issue
+### Version Policy
+- **Semantic versioning:** MAJOR.MINOR.PATCH
+- **Pre-release:** vX.Y.Z-rc.N (release candidates)
+- **Breaking changes:** MAJOR version bump, documented in release notes
 
-**Solution:**
-- Instruct users to use latest main or specific version tag
-- For pinned versions, users must explicitly update
+### Security Patches
+- Security issues reported to `security@ctrl.local` (TBD)
+- Fixed in private branch, released as patch version
+- Severity communicated in release notes
 
 ## For LLMs
 
-When preparing a release:
-- Ensure backwards compatibility; old installations must still work
-- Update CHANGELOG.md before pushing to main
-- Include decision context in commit messages for significant changes
-- Test on multiple platforms before releasing
-- Announce breaking changes prominently
-- Consider impact on existing projects using CtrlSpec
+When suggesting deployments or changes:
+- Consider impact on all environments
+- Note if database migrations are needed
+- Flag if environment variables need updates
+- Mention monitoring/alerting implications
+- Consider rollback plan
+- Think about zero-downtime requirements
