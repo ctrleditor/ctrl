@@ -258,25 +258,25 @@ export interface Disposable {
 // Error Types
 // ============================================================================
 
-export class CapError extends Error {
+export class CtrlError extends Error {
 	constructor(
 		readonly code: string,
 		message: string,
 		readonly context?: Record<string, unknown>
 	) {
 		super(message);
-		this.name = "CapError";
+		this.name = "CtrlError";
 	}
 }
 
-export class ConfigError extends CapError {
+export class ConfigError extends CtrlError {
 	constructor(message: string, context?: Record<string, unknown>) {
 		super("CONFIG_ERROR", message, context);
 		this.name = "ConfigError";
 	}
 }
 
-export class PluginError extends CapError {
+export class PluginError extends CtrlError {
 	constructor(message: string, context?: Record<string, unknown>) {
 		super("PLUGIN_ERROR", message, context);
 		this.name = "PluginError";

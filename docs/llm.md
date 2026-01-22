@@ -150,7 +150,7 @@ Documentation lives with code and evolves with it:
 
 ## Current Project Status (Jan 23, 2026)
 
-**Project Name:** Ctrl (rebranded from Cap)
+**Project Name:** Ctrl
 **Repository:** https://github.com/ctrleditor/ctrl
 **Status:** Core Editor MVP Complete
 

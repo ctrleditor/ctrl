@@ -168,8 +168,8 @@ ANTHROPIC_API_KEY=sk-ant-...     # Claude API key
 OPENAI_API_KEY=sk-...             # Alternative AI provider
 
 # Optional
-CAP_CONFIG_DIR=~/.ctrl             # Where config files live (default: ~/.ctrl)
-CAP_PLUGIN_DIR=~/.ctrl/plugins     # Where plugins are installed
+CTRL_CONFIG_DIR=~/.ctrl             # Where config files live (default: ~/.ctrl)
+CTRL_PLUGIN_DIR=~/.ctrl/plugins     # Where plugins are installed
 ```
 
 **For developers (building Ctrl):**
