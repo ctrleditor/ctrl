@@ -1,3 +1,33 @@
 {
-	"mcpServers": {}
+  "mcpServers": {
+    "atlassian": {
+      "comment": "Atlassian MCP - Access Jira and Confluence via official server",
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://mcp.atlassian.com/v1/sse"],
+      "enabled": false
+    },
+    "fathom": {
+      "comment": "Fathom AI MCP - Search and retrieve meeting information (Claude Code)",
+      "command": "node",
+      "args": ["../mcp-fathom-server/dist/index.js"],
+      "enabled": false,
+      "env": {
+        "FATHOM_API_KEY": "${FATHOM_API_KEY}"
+      },
+      "setup": [
+        "1. Clone the Fathom MCP server: git clone https://github.com/sourcegate/mcp-fathom-server",
+        "2. Install dependencies: cd mcp-fathom-server && npm install && npm run build",
+        "3. Get your API key from https://app.fathom.video → Settings → API",
+        "4. Set environment variable: export FATHOM_API_KEY='your-api-key-here'",
+        "5. Update the 'args' path above to point to your cloned repo's dist/index.js file",
+        "6. Set 'enabled' to true once configured",
+        "7. Ask Claude Code: 'Find meetings about [topic] and summarize key decisions'"
+      ],
+      "links": {
+        "github": "https://github.com/sourcegate/mcp-fathom-server",
+        "fathom": "https://fathom.video"
+      }
+    }
+  },
+  "notes": {}
 }

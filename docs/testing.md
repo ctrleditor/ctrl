@@ -2,607 +2,297 @@
 
 ## Philosophy
 
-**For the Prototype (Week 1-2):**
-- Focus on demonstrable features over comprehensive tests
-- Write tests for core primitives (buffer operations, modal transitions, rope data structure)
-- Manual testing and dogfooding take priority
-- Plugin system gets smoke tests only
+CtrlSpec is a documentation distribution framework with minimal runtime code. Testing focuses on:
+- **Templates**: Validating markdown structure and completeness
+- **Installation script**: Testing bash script logic (symlink creation, file copying, error handling)
+- **Compatibility**: Ensuring it works across different OS and shell environments
+- **Manual verification**: Hands-on testing of full installation flow
 
-**For the MVP (Weeks 3-12):**
-- Adopt a testing pyramid: Many unit tests, fewer integration tests, selective E2E tests
-- TDD for bug fixes (write test that fails, fix bug, test passes)
-- Post-code testing for new features (build → demonstrate → write tests)
-- Critical paths (buffer corruption, plugin crashes, AI context building) have 100% coverage
-
-**For v1.0:**
-- 70%+ overall test coverage
-- 100% coverage on critical paths (buffer, plugin sandbox, AI platform)
-- All plugin APIs have integration tests
-- E2E tests for core workflows
-
-**Testing Pyramid Ratio:**
-- 70% Unit tests (functions, components, buffer operations)
-- 20% Integration tests (plugin API, buffer + modal interactions, AI + context)
-- 10% E2E tests (editing a file, using chat plugin, syntax highlighting)
+We emphasize **integration and compatibility testing** over unit tests, since the project is small and behavior matters more than internal structure.
 
 ## Test Structure
 
 ### Directory Layout
+
 ```
-src/
-  core/
-    buffer/
-      buffer.ts
-      buffer.test.ts        # Unit tests for Buffer class
-      rope.ts
-      rope.test.ts          # Rope data structure tests
-    modal/
-      modes.ts
-      modes.test.ts         # Mode transition tests
-    commands/
-      registry.ts
-      registry.test.ts
-  platform/
-    ai/
-      client.ts
-      client.test.ts        # AI client abstraction
-      providers/
-        anthropic.ts
-        anthropic.test.ts    # Provider-specific tests
-
-tests/
-  integration/
-    core/
-      buffer-modal.test.ts  # Buffer + modal integration
-      config-hot-reload.test.ts
-    plugin-system/
-      plugin-api.test.ts    # Plugin API contracts
-      sandbox.test.ts       # Plugin isolation
-    ai-platform/
-      context-builder.test.ts
-      streaming.test.ts
-
-  fixtures/
-    sample-files/          # Sample code files for testing
-    test-configs/          # TOML configs for testing
-
-  e2e/
-    edit-file.test.ts      # Edit and save a file
-    modal-navigation.test.ts
-    chat-workflow.test.ts   # Open chat, ask question, verify response
-    inline-completions.test.ts
+ctrlspec/
+├── tests/                          # Test scripts and fixtures
+│   ├── fixtures/                   # Test data
+│   │   ├── sample-project/         # Mock project to test install on
+│   │   └── templates/              # Template validation fixtures
+│   ├── shell/                      # Bash test framework
+│   │   └── test_helpers.sh         # Common test utilities
+│   ├── install.test.sh             # Integration tests for install.sh
+│   ├── templates.test.sh           # Template validation tests
+│   └── README.md                   # How to run tests
+├── install.sh                      # Installation script
+├── .mcp.json                       # Configuration to test
+└── templates/docs/                 # Templates to validate
 ```
 
 ### Naming Conventions
-- Test files: `*.test.ts` (colocated with source) or in `tests/` subdirectories
-- Test suites: `describe('Component/Function Name', () => { ... })`
-- Test cases: `it('should [expected behavior] when [condition]', () => { ... })`
-- Examples:
-  - ✅ `it('should insert text at cursor position')`
-  - ✅ `it('should respect rope tree balance during large insertions')`
-  - ❌ `it('works')`
+
+**Test files:**
+- Bash tests: `*.test.sh` (executable bash scripts)
+- Test functions: `test_something() { ... }`
+- Test descriptions: `# TEST: Description of what's being tested`
+
+**Template files:**
+- Check that sections exist
+- Validate markdown structure
+- Ensure no breaking changes between versions
+
+## Test Categories
+
+### 1. Template Validation Tests
+
+**What to test:**
+- All required sections exist in each template
+- Markdown syntax is valid
+- Template examples are properly formatted
+- No accidental typos in section names
+
+**Examples:**
+```bash
+# TEST: docs/requirements.md has all required sections
+test_requirements_structure() {
+  grep -q "## Project Overview" docs/requirements.md
+  grep -q "## Business Goals" docs/requirements.md
+  grep -q "## Functional Requirements" docs/requirements.md
+  # ... etc
+}
+
+# TEST: architecture.md contains valid ASCII diagrams
+test_architecture_diagrams() {
+  grep -q "┌─" docs/architecture.md  # Diagram uses box drawing chars
+}
+```
+
+### 2. Installation Script Tests
+
+**What to test:**
+- Script successfully copies templates
+- Symlinks are created correctly
+- Existing files are handled gracefully
+- Script works with different shell environments (bash, sh, zsh)
+- Error handling works (missing directories, permission issues)
+
+**Examples:**
+```bash
+# TEST: install script copies all templates
+test_install_copies_templates() {
+  bash install.sh --test-mode
+  [ -f docs/requirements.md ] || fail "requirements.md not copied"
+  [ -f docs/architecture.md ] || fail "architecture.md not copied"
+}
+
+# TEST: install script creates symlinks
+test_install_creates_symlinks() {
+  bash install.sh --test-mode
+  [ -L CLAUDE.md ] || fail "CLAUDE.md symlink not created"
+  [ "$(readlink CLAUDE.md)" = "docs/llm.md" ] || fail "symlink target wrong"
+}
+
+# TEST: install script respects existing files
+test_install_respects_existing_files() {
+  echo "existing content" > docs/llm.md
+  bash install.sh --test-mode
+  grep -q "existing content" docs/llm.md || fail "file was overwritten"
+}
+```
+
+### 3. Compatibility Tests
+
+**What to test:**
+- Script works on Linux, macOS, WSL
+- Works with bash, sh, zsh
+- Handles different file systems (ext4, APFS, NTFS)
+- Gracefully handles missing optional tools
+
+**Manual testing (before releases):**
+```bash
+# Run on different environments
+- Ubuntu 20.04 (GitHub Actions)
+- macOS 11+ (GitHub Actions)
+- Windows WSL2 (manual or GitHub Actions)
+
+# Test with different shells
+bash install.sh
+sh install.sh
+zsh install.sh
+fish install.sh  # Best effort
+```
+
+### 4. MCP Configuration Tests
+
+**What to test:**
+- `.mcp.json` is valid JSON
+- All required fields exist
+- Setup instructions are present
+- Disabled by default
+
+**Examples:**
+```bash
+# TEST: .mcp.json is valid JSON
+test_mcp_config_valid() {
+  jq empty .mcp.json || fail ".mcp.json is not valid JSON"
+}
+
+# TEST: All MCP servers are disabled by default
+test_mcp_servers_disabled() {
+  jq '.mcpServers.atlassian.enabled' .mcp.json | grep -q "false"
+  jq '.mcpServers.fathom.enabled' .mcp.json | grep -q "false"
+}
+```
 
 ## Running Tests
 
-### Commands
+### Local Testing
+
 ```bash
-bun test                    # All tests (watch mode by default)
-bun test --no-watch        # Run once and exit
-bun test --coverage        # With coverage report
-bun test src/core/buffer   # Only buffer tests
-bun test --filter="rope"   # Fuzzy match "rope" tests
+# Run all tests
+bash tests/install.test.sh
+bash tests/templates.test.sh
+
+# Run specific test
+bash tests/install.test.sh test_install_copies_templates
+
+# Run with verbose output
+bash tests/install.test.sh -v
 ```
 
-### CI/CD
-- **Pre-commit hook**: No (but can add in post-MVP)
-- **Pull request**: Yes, tests must pass
-- **Before deployment**: Yes, full test suite blocks main branch merge
-- **GitHub Actions**: Run on every push to main/develop, on PRs
+### GitHub Actions CI/CD
 
-## Coverage Requirements
+**Triggers:**
+- On every push to main branch
+- On every pull request
+- Manual trigger via workflow_dispatch
 
-### Targets (Progressive)
+**Platforms tested:**
+- Ubuntu 20.04 (latest)
+- macOS 11 (latest)
+- Multiple bash versions (3.2, 4.0, 5.0)
 
-**Prototype (Week 2):**
-- Core buffer operations: 80%+
-- Modal system: 70%+
-- Config loader: 70%+
-- Critical paths: 100%
+**Required to pass:**
+- All template validation tests
+- All installation tests on all platforms
+- All compatibility tests
 
-**MVP (3 months):**
-- Overall coverage: 60%+
-- Critical paths (buffer, modal, plugin sandbox, AI context): 100%
-- Plugin API: 80%+
-- New code: 100% (before merge)
+## Test Data & Fixtures
 
-**v1.0 (6 months):**
-- Overall coverage: 70%+
-- Critical paths: 100%
-- Excluded code (types, config, test helpers): tracked separately
+### Sample Project Fixture
 
-### Critical Paths (Must Be 100%)
-- `buffer/rope.ts` - Rope insertion/deletion
-- `modal/transitions.ts` - Mode changes
-- `plugins/sandbox.ts` - Plugin isolation
-- `platform/ai/client.ts` - AI request/response handling
-- `core/commands/registry.ts` - Command execution (no crashes)
-
-### Exclusions
-- Type definitions (`*.d.ts`)
-- Configuration files (`*.toml`)
-- Test utilities and fixtures
-- Generated code (syntax highlighting grammars, etc.)
-- CLI help text and messages
-
-## Writing Tests
-
-### Unit Tests
-
-**What to test:**
-- Individual functions/methods (rope insertions, cursor movements, command execution)
-- Immutable operations (buffer state doesn't leak)
-- Edge cases (empty buffers, large files, unicode)
-- Error handling (invalid parameters, out of bounds)
-
-**Example:**
-```typescript
-import { describe, it, expect } from 'bun:test';
-import { Buffer } from './buffer';
-import { Rope } from './rope';
-
-describe('Rope', () => {
-  it('should insert text at position', () => {
-    const rope = new Rope('hello');
-    rope.insert(5, ' world');
-    expect(rope.toString()).toBe('hello world');
-  });
-
-  it('should delete text range', () => {
-    const rope = new Rope('hello world');
-    rope.delete(5, 11);
-    expect(rope.toString()).toBe('hello');
-  });
-
-  it('should handle unicode correctly', () => {
-    const rope = new Rope('café');
-    expect(rope.length).toBe(4);
-    rope.insert(3, 's');
-    expect(rope.toString()).toBe('cafés');
-  });
-
-  it('should maintain balance after many inserts', () => {
-    const rope = new Rope('');
-    for (let i = 0; i < 1000; i++) {
-      rope.insert(rope.length, `line ${i}\n`);
-    }
-    expect(rope.length).toBeGreaterThan(5000);
-    expect(rope.height).toBeLessThan(15); // Log(n) height
-  });
-
-  it('should throw on out-of-bounds delete', () => {
-    const rope = new Rope('hello');
-    expect(() => rope.delete(0, 100)).toThrow();
-  });
-});
-
-describe('Buffer', () => {
-  it('should track cursor position', () => {
-    const buf = new Buffer('hello\nworld');
-    buf.setCursor(0, 0);
-    expect(buf.cursor).toEqual({ line: 0, col: 0 });
-    buf.moveRight();
-    expect(buf.cursor).toEqual({ line: 0, col: 1 });
-  });
-
-  it('should not expose internal state mutations', () => {
-    const buf = new Buffer('hello');
-    const cursor1 = buf.cursor;
-    buf.moveRight();
-    expect(cursor1).toEqual({ line: 0, col: 0 }); // Original unchanged
-  });
-});
+Located in `tests/fixtures/sample-project/`:
+```
+sample-project/
+├── README.md                  # Existing readme
+├── docs/                      # May already exist
+│   └── notes.md              # Existing docs
+├── CLAUDE.md                  # May already exist
+└── .mcp.json                  # May already exist
 ```
 
-### Integration Tests
+Used to test:
+- How install script handles existing files
+- Symlink creation when files already exist
+- Avoiding data loss
 
-**What to test:**
-- Plugin API contracts (plugins can register commands, access workspace)
-- Buffer + Modal system interactions (editing in different modes)
-- AI platform with mock providers
-- Config loading + hot-reload triggers
-- Command execution through registry
+### Template Fixtures
 
-**Example:**
-```typescript
-import { describe, it, expect } from 'bun:test';
-import { PluginHost } from './plugin-host';
-import { createMockContext } from '../test-utils';
+Located in `tests/fixtures/templates/`:
+- Examples of correctly filled-in templates
+- Test files with various markdown formatting
+- Edge cases (very long sections, special characters, etc.)
 
-describe('Plugin API', () => {
-  it('should allow plugin to register command', async () => {
-    const host = new PluginHost();
-    const context = createMockContext();
+## Coverage & Validation
 
-    // Simulate plugin activation
-    context.commands.register('my-command', async () => {
-      return 'success';
-    });
+### Template Validation
 
-    const result = await host.executeCommand('my-command');
-    expect(result).toBe('success');
-  });
+**Required for each template file:**
+- ✓ All section headers present
+- ✓ No orphaned [TODO] tags after being filled
+- ✓ Code examples are syntactically valid (if language-specific)
+- ✓ Links in documents exist and are accessible
 
-  it('should enforce permissions on filesystem access', async () => {
-    const host = new PluginHost();
-    const context = createMockContext({ permissions: { filesystem: 'denied' } });
+### Script Validation
 
-    expect(() => {
-      context.workspace.readFile('/etc/passwd');
-    }).toThrow('Permission denied: filesystem');
-  });
-});
-
-describe('Buffer + Modal Integration', () => {
-  it('should exit insert mode on Escape', () => {
-    const buffer = new Buffer('hello');
-    const modal = new ModalSystem(buffer);
-
-    modal.enter('insert');
-    expect(modal.currentMode).toBe('insert');
-
-    modal.handle('Escape');
-    expect(modal.currentMode).toBe('normal');
-  });
-
-  it('should undo multi-character insert as single operation', () => {
-    const buffer = new Buffer('');
-    const modal = new ModalSystem(buffer);
-
-    modal.enter('insert');
-    modal.handle('a'); // Insert "a"
-    modal.handle('b'); // Insert "b"
-    modal.handle('c'); // Insert "c"
-
-    expect(buffer.text).toBe('abc');
-    buffer.undo();
-    expect(buffer.text).toBe(''); // All 3 chars undone as one
-  });
-});
-```
-
-### E2E Tests
-
-**What to test:**
-- Critical workflows (start editor, edit file, save)
-- Plugin interactions (activate plugin, use its features)
-- AI features (chat, completions, context building)
-
-**Tools:** Custom TUI test harness (no Playwright - it's terminal, not browser)
-
-**Example:**
-```typescript
-import { EditorSession } from '../test-utils';
-
-describe('E2E: Edit and Save', () => {
-  it('should edit a file and save it', async () => {
-    const session = new EditorSession();
-
-    // Open a file
-    await session.command('edit tests/fixtures/sample.ts');
-
-    // Type some text
-    session.key('i'); // Enter insert mode
-    session.type('console.log("hello");');
-    session.key('Escape'); // Exit insert mode
-
-    // Save
-    session.key(':');
-    session.type('w');
-    session.key('Enter');
-
-    const saved = await session.readFile('tests/fixtures/sample.ts');
-    expect(saved).toContain('console.log("hello");');
-
-    session.close();
-  });
-});
-
-describe('E2E: AI Chat', () => {
-  it('should open chat and ask a question', async () => {
-    const session = new EditorSession({
-      mockAI: { provider: 'mock', responses: ['This is a test response'] }
-    });
-
-    // Open chat
-    session.key('<leader>'); // Leader key
-    session.key('a');
-    session.key('c'); // ai_chat_toggle
-
-    expect(session.panelVisible('chat')).toBe(true);
-
-    // Ask a question
-    session.type('What does this function do?');
-    session.key('Enter');
-
-    const response = await session.waitFor('response', 2000);
-    expect(response).toContain('test response');
-  });
-});
-```
-
-## Mocking Strategy
-
-### When to Mock
-- **External APIs** (Claude, OpenAI): Always mock in unit/integration tests
-- **File system**: Use in-memory or temp files; avoid hitting real disk in most tests
-- **Time/dates**: Mock `Date.now()` for deterministic tests
-- **Network**: Mock HTTP calls (no real API calls in tests)
-- **Terminal rendering**: Mock OpenTUI rendering for unit tests
-
-### How to Mock
-- **AI providers**: Create mock provider implementing `AIProvider` interface
-- **File system**: Use `memfs` or temp directories
-- **Functions**: Bun's `mock()` function or manual test doubles
-- **Time**: Use `beforeEach()` to mock `Date.now()`
-
-**Example:**
-```typescript
-import { mock } from 'bun:test';
-
-describe('AI Platform', () => {
-  it('should stream response from mock provider', async () => {
-    const mockProvider = {
-      name: 'mock',
-      models: ['test-model'],
-      async *stream(messages) {
-        yield { type: 'content_block_start', content_block: { type: 'text', text: '' } };
-        yield { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Hello' } };
-        yield { type: 'message_stop' };
-      }
-    };
-
-    const client = new AIClient(mockProvider);
-    const response = await client.streamComplete([{ role: 'user', content: 'Hi' }]);
-
-    let text = '';
-    for await (const chunk of response) {
-      text += chunk;
-    }
-    expect(text).toBe('Hello');
-  });
-});
-```
-
-## Test Data
-
-### Fixtures
-- Location: `tests/fixtures/`
-- Format: Real files (sample code, config files) to test realistic scenarios
-- Examples:
-  - `tests/fixtures/sample.ts` - TypeScript file for testing syntax highlighting
-  - `tests/fixtures/large-file.js` - 10MB file for performance testing
-  - `tests/fixtures/test-config.toml` - Valid/invalid configs for testing loader
-
-### Factories
-```typescript
-// tests/fixtures/builders.ts
-import { faker } from '@faker-js/faker'; // or equivalent
-
-export function createFile(overrides = {}) {
-  return {
-    path: faker.system.filePath(),
-    content: faker.lorem.paragraph(),
-    ...overrides
-  };
-}
-
-export function createBuffer(content = 'hello') {
-  return new Buffer(content);
-}
-
-export function createConfig(overrides = {}) {
-  return {
-    editor: { lineNumbers: true, tabWidth: 2 },
-    keymaps: { normal: { 'h': 'move_left' } },
-    ...overrides
-  };
-}
-```
-
-## Testing Utilities
-
-### Custom Matchers
-```typescript
-// tests/matchers.ts
-import { expect } from 'bun:test';
-
-// Check if rope height is balanced
-expect.extend({
-  toBeBalanced(received: Rope) {
-    const maxHeight = Math.ceil(Math.log2(received.length)) + 2;
-    const pass = received.height <= maxHeight;
-    return {
-      pass,
-      message: () => `Expected rope to be balanced, got height ${received.height}, max ${maxHeight}`
-    };
-  }
-});
-```
-
-### Helpers
-```typescript
-// tests/test-utils.ts
-import { Buffer } from '../src/core/buffer';
-import { ModalSystem } from '../src/core/modal';
-
-export function createEditorState(text = '') {
-  const buffer = new Buffer(text);
-  const modal = new ModalSystem(buffer);
-  return { buffer, modal };
-}
-
-export function createMockContext(overrides = {}) {
-  return {
-    commands: new CommandRegistry(),
-    workspace: new MockWorkspace(),
-    window: new MockWindow(),
-    permissions: { filesystem: 'allow', network: 'allow', ...overrides.permissions },
-    ...overrides
-  };
-}
-
-export async function waitFor(condition: () => boolean, timeout = 1000) {
-  const start = Date.now();
-  while (Date.now() - start < timeout) {
-    if (condition()) return true;
-    await new Promise(r => setTimeout(r, 10));
-  }
-  throw new Error('waitFor timeout');
-}
-```
-
-## Common Patterns
-
-### Async Testing
-```typescript
-describe('AI Client', () => {
-  it('should stream response from provider', async () => {
-    const client = new AIClient(mockProvider);
-    const stream = client.streamComplete([...]);
-
-    let result = '';
-    for await (const chunk of stream) {
-      result += chunk;
-    }
-
-    expect(result).toContain('expected text');
-  });
-
-  it('should handle provider timeout', async () => {
-    const slowProvider = {
-      async *stream() {
-        await new Promise(r => setTimeout(r, 10000));
-      }
-    };
-
-    const client = new AIClient(slowProvider, { timeout: 100 });
-
-    expect(async () => {
-      for await (const _ of client.streamComplete([...])) {}
-    }).rejects.toThrow('timeout');
-  });
-});
-```
-
-### Error Testing
-```typescript
-describe('Buffer', () => {
-  it('should throw on invalid line number', () => {
-    const buf = new Buffer('hello');
-    expect(() => buf.setCursor(100, 0)).toThrow('Line number out of bounds');
-  });
-
-  it('should give helpful error for malformed config', async () => {
-    const error = await expect(() => loadConfig('invalid.toml'))
-      .toThrow(/TOML parse error/);
-    expect(error.message).toContain('line 3');
-  });
-});
-```
-
-### Terminal UI Testing
-```typescript
-describe('Modal System', () => {
-  it('should display mode indicator', () => {
-    const editor = createEditorState('hello');
-    expect(editor.modal.currentMode).toBe('normal');
-    expect(editor.modal.getStatusBarText()).toContain('NORMAL');
-
-    editor.modal.enter('insert');
-    expect(editor.modal.getStatusBarText()).toContain('INSERT');
-  });
-});
-```
-
-## Performance Testing
-[TODO: If applicable]
-- Load testing: [tools, when to run]
-- Benchmarking: [what to measure]
-
-## Debugging Tests
-
-### Failed Tests
-[TODO: How to debug]
-```bash
-npm test -- --verbose
-npm test -- --no-coverage  # Faster runs
-npm test -- --runInBand     # Sequential execution
-```
-
-### VS Code Integration
-[TODO: IDE setup if relevant]
-- Use Jest extension
-- Breakpoints work in debug mode
+**For install.sh:**
+- ✓ ShellCheck passes (bash static analysis)
+- ✓ No hardcoded paths (use relative paths or $HOME)
+- ✓ Handles edge cases (spaces in paths, special characters)
+- ✓ Error messages are helpful
 
 ## Best Practices
 
-### Do's
-- **Write descriptive test names**: `it('should undo multi-char insert as single operation')`
-- **Test behavior, not implementation**: Test that rope is balanced, not its internal structure
-- **Keep tests independent**: Each test should be runnable in isolation, in any order
-- **Use arrange-act-assert pattern**: Setup → Execute → Verify
-- **Test edge cases**: Empty buffer, huge files, unicode, concurrent operations
-- **Mock external dependencies**: Mock AI, file system, time
-- **Test error paths**: What happens when AI call fails? Plugin crashes?
-- **Make assertions specific**: `expect(rope.height).toBeLessThan(15)` not just `expect(rope).toBeTruthy()`
+### For Installation Script Tests
 
-### Don'ts
-- **Don't test framework code**: Trust Bun's test framework; don't write tests for `expect()`
-- **Don't share state between tests**: Use `beforeEach()` to reset, not shared variables
-- **Don't make tests dependent**: Test B shouldn't require Test A to run first
-- **Don't over-mock**: Mock external APIs, but not your own functions (test the integration)
-- **Don't test implementation details**: Don't assert on tree structure; assert on behavior
-- **Don't ignore flaky tests**: Fix or skip them, don't let them red-herring the suite
-- **Don't write tests without purpose**: Skip tests for obvious code (getters, simple setters)
+**Do's:**
+- Create temporary test directories; don't modify user's system
+- Clean up after tests (remove test files)
+- Test both happy path and error scenarios
+- Use isolated test environments
+- Document assumptions about shell environment
 
-## Performance Testing
+**Don'ts:**
+- Modify user's actual home directory
+- Assume specific shells or tools are installed
+- Hardcode paths
+- Leave test files behind
+- Skip tests on specific OS (test on all)
 
-For Ctrl, performance testing is critical (< 16ms keystroke latency, < 100ms startup):
+### For Template Tests
 
-```typescript
-describe('Performance', () => {
-  it('should insert 10k characters in < 100ms', () => {
-    const rope = new Rope('');
-    const start = performance.now();
+**Do's:**
+- Validate markdown syntax
+- Check for required sections
+- Ensure consistency across templates
+- Test that examples work
+- Document expected content
 
-    for (let i = 0; i < 10000; i++) {
-      rope.insert(rope.length, 'x');
-    }
+**Don'ts:**
+- Enforce specific writing style
+- Validate content quality (subjective)
+- Over-constrain template flexibility
+- Test things better caught by human review
 
-    const elapsed = performance.now() - start;
-    expect(elapsed).toBeLessThan(100);
-  });
+## Debugging Tests
 
-  it('should render keystroke within 16ms', () => {
-    // Simulate keystroke → buffer update → render
-    const buffer = new Buffer('hello');
-    const start = performance.now();
+### Failed Installation Test
 
-    buffer.insert(0, 'a');
-    // (Rendering would happen here in real editor)
+```bash
+# Run with debug output
+bash -x tests/install.test.sh test_name
 
-    const elapsed = performance.now() - start;
-    expect(elapsed).toBeLessThan(16);
-  });
-});
+# Check what files were created
+ls -la /tmp/ctrlspec-test/
+
+# Verify symlink was created
+ls -l CLAUDE.md
+
+# Check file contents
+cat docs/llm.md
+```
+
+### Template Validation Failure
+
+```bash
+# Check which section is missing
+grep "## Section Name" docs/template.md
+
+# Validate markdown structure
+cat docs/template.md | head -20
+
+# Check for orphaned TODOs
+grep "\[TODO" docs/*.md
 ```
 
 ## For LLMs
 
-When generating tests:
-- Follow existing test patterns in the codebase
-- Use descriptive test names that explain what's being tested
-- Include edge cases and error scenarios
-- Mock external dependencies appropriately
-- Ensure tests are deterministic (no random data, fixed dates)
-- Add comments for complex test setup
+When generating or modifying CtrlSpec:
+- Run tests locally before submitting changes
+- Test on at least Linux (GitHub Actions for free)
+- Ensure backwards compatibility; don't break existing installations
+- Update tests when adding new features
+- Remember: CtrlSpec is mostly static files; focus on integration tests
+- Test that symlinks work correctly (common failure point)
+- Validate that all templates still render in GitHub/GitLab

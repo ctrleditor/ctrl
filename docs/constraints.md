@@ -2,218 +2,322 @@
 
 ## Technical Constraints
 
-### Performance (Hard Limits)
-- **Cold startup**: Must be < 100ms (plugin discovery, config loading)
-- **Keystroke latency**: Must be < 16ms (60fps responsiveness)
-- **Idle memory**: Must be < 100MB resident
-- **Active project memory**: Must be < 500MB (with large files and many plugins)
-- **AI first token**: Must be < 2s (from request to first response chunk)
-- **File handling**: Must support 100MB+ files without UI freezing
-- **Syntax highlighting**: Must not lag with complex syntax trees
+### Language & Runtime
 
-### Platform Compatibility
-- **Required**: macOS (10.13+), Linux (most distributions), Windows (via WSL or Git Bash, native post-MVP)
-- **Terminal compatibility**: xterm-256color or better (TERM env var)
-- **Node version**: 18+ (Bun is the runtime)
-- **No GUI dependency**: Pure terminal, no Qt/GTK/Cocoa
+**Bash is the only allowed implementation language:**
+- Installation script MUST be POSIX-compatible bash (sh compatible)
+- Rationale: Ensures maximum compatibility across Unix-like systems; no runtime dependencies
+- No Node.js, Python, Ruby, or other runtimes allowed in core tooling
+- Future: CLI tooling can use other languages, but only as optional enhancements
+
+**Markdown is the only documentation format:**
+- All templates MUST be GitHub Flavored Markdown
+- Rationale: Renders in GitHub, GitLab, Gitea, and any text editor
+- No HTML, PDF, or proprietary formats
+
+### Performance
+
+**Installation must be fast:**
+- Install script execution: < 5 seconds target
+- Symlink creation: < 1 second
+- No slow operations (downloads, compiles, builds)
+- Rationale: One-command install should feel instant; users copy/paste from marketing site
+
+**No runtime performance requirements:**
+- CtrlSpec is static documentation; no servers, databases, or API calls
+- MCP integration (Atlassian, Fathom) is optional and user-initiated
+- Performance responsibility is on the integrated systems, not CtrlSpec
+
+### Compatibility
+
+**Operating systems supported:**
+- Linux (primary): Ubuntu 20+, Debian 11+, CentOS 8+, Fedora 34+
+- macOS: 11+ (Big Sur and later)
+- Windows: WSL2 (Windows Subsystem for Linux 2)
+- Windows: Git Bash, MinGW (best effort, not guaranteed)
+- Not supported: Native Windows PowerShell, cmd.exe (users must use Git Bash or WSL)
+
+**Shell compatibility:**
+- Must work with: bash, sh (POSIX)
+- Must work with zsh, fish as user shell
+- No bash 4.0+ features (macOS ships bash 3.2)
+- Use `/usr/bin/env bash` for shebang
+
+**File system compatibility:**
+- Symlinks must work: ext4, APFS, NTFS (WSL), HFS+
+- Handle broken symlinks gracefully
+- Handle existing files (no silent overwrites)
+- Max path length: 255 characters (common limit)
+
+**Git compatibility:**
+- Must work with: Git 2.20+
+- Documentation committed to git repositories
+- Users can use GitHub, GitLab, Gitea, or self-hosted git
 
 ### Infrastructure
-- **Distribution**: Both npm package (`npm install -g ctrl`) AND downloadable binaries
-- **No server required**: Fully local-first (offline-capable)
-- **User's own AI API keys**: No server-side API calls required (user brings Claude/OpenAI key)
-- **Optional hosted version**: Future SaaS offering can run Ctrl in cloud, but MVP is local-only
+
+**No external services required:**
+- Can operate completely offline after installation
+- Optional: Atlassian MCP requires user to provide OAuth token
+- Optional: Fathom MCP requires user to provide API key
+- No CtrlSpec-controlled servers or cloud services
+
+**Hosting:**
+- Primary: GitHub (templates served via raw.githubusercontent.com)
+- Fallback: No automatic fallback (user can clone repo directly)
+- Distribution: HTTP + SHA256 verification (future: code signing)
+
+### Resource Requirements
+
+**Minimal system requirements:**
+- Disk space: < 1MB for full installation
+- Memory: None (static files only)
+- CPU: None
+- Network: Required only for initial download
 
 ## Business Constraints
 
-### Regulatory & Compliance
-- **Data privacy**: Users control their data; Ctrl doesn't collect telemetry by default (optional analytics post-MVP)
-- **GDPR**: No user data stored on servers (MVP is local-first)
-- **License**: Apache 2.0 (free, open source, commercial-friendly)
-- **No user accounts required**: MVP works without sign-up (future: optional accounts for hosted version)
+### Licensing
 
-### Budget
-- **Self-funded**: No external funding for prototype phase
-- **Open source**: Community contributions expected post-MVP
-- **API costs**: Users pay for their own Claude/OpenAI API usage (Ctrl does not charge)
+**MIT License is mandatory:**
+- All code and templates must be MIT-compatible
+- Cannot use GPL, AGPL, or other copyleft licenses
+- Rationale: CtrlSpec must be usable in any project (commercial, proprietary, etc.)
+- Contributors must agree to MIT when submitting PRs
+
+### Scope
+
+**What CtrlSpec DOES NOT do:**
+- Does not generate code documentation (no JavaDoc, JSDoc generation)
+- Does not replace existing documentation systems (Confluence, Notion, ReadTheDocs)
+- Does not provide hosting for documentation
+- Does not validate or lint documentation (future: optional tooling)
+- Does not enforce specific technologies or architecture patterns
+- Does not provide project management or issue tracking
+- Does not include AI model training or data collection
+
+**What CtrlSpec DOES:**
+- Provides template structure for consistent documentation
+- Creates symlinks so AI tools can find documentation
+- Integrates with MCP servers for data enrichment
+- Guides developers on how to document decisions and architecture
+
+### Community & Contributions
+
+**Open source principles:**
+- Accepts community contributions (issues, PRs)
+- Must maintain backwards compatibility between versions (semver)
+- Long-term maintenance commitment required
+- Community-driven roadmap (what gets prioritized)
+
+**Backwards compatibility:**
+- Install script must not break existing projects
+- Templates can be updated; symlinks must continue to work
+- MCP configuration must be extensible without breaking changes
+- Deprecation must be documented; breaking changes require major version bump
 
 ### Timeline
-- **Prototype deadline**: 2 weeks (proof of concept, demo-ready)
-- **MVP deadline**: 3 months (stable, documented, plugin ecosystem starting)
-- **v1.0 deadline**: 6 months (feature-complete, production-ready)
-- **Hosted version**: Post-MVP (after establishing open-source success)
+
+**Release schedule:**
+- No fixed release date or timeline
+- Driven by community needs and maintenance capacity
+- Security fixes released as soon as possible
+- Features released when ready, not on schedule
 
 ## Technology Constraints
 
-### Approved Technology Stack
-- **Language**: TypeScript (both core and plugins)
-  - Types/interfaces only (no classes, no OOP)
-  - Functional programming paradigm
-  - **Compiled natively by Bun** - no separate compilation step needed
-- **Runtime**: Bun (package manager + JavaScript runtime) **ONLY**
-  - No Node.js shims or Node compatibility mode
-  - Bun-native APIs where available
-  - Bun handles TypeScript compilation automatically
-- **Rendering**: OpenTUI (Zig-backed terminal UI framework)
-- **Syntax**: Tree-sitter (language-agnostic parsing)
-- **Config format**: TOML (human-readable, validatable)
-- **Validation**: Zod (TypeScript-first schema validation, project dependency)
-- **Code formatting**: Biome (Rust-based, fast, system-installed only - not in package.json)
-- **CLI framework**: bunli (type-safe CLI for Bun, Zod-validated options, project dependency)
-- **Plugin sandbox**: WebAssembly or Workers API (depends on OpenTUI capabilities)
-- **Module system**: ES modules + barrel imports (index.ts with **explicit** named re-exports, no `export *`)
+### Approved Technologies
 
-**Development Environment:**
-- All tools installed system-wide or via Nix
-- No dev dependencies in package.json
-- Bun handles TypeScript - no separate compiler needed
-- Biome handles formatting/linting - installed globally
+**MUST use (Core/CLI):**
+- TypeScript (for CLI implementation in Phase 2+)
+- Bun (runtime for CLI, package manager, native test runner)
+- Biome (unified linter and formatter - root-level integration via Turborepo)
+- Turborepo (task orchestration and caching for monorepo)
+- Markdown (GitHub Flavored for templates)
+- Bash (POSIX-compatible for install script)
+- JSON (for configuration)
+- Git (for version control)
+- GitHub (for distribution)
 
-**Rationale:**
-- TypeScript: Type safety, better DX for plugin developers
-- **Bun only**: Simpler toolchain, faster execution, native TypeScript support
-- **Functional**: Easier to reason about state, safer defaults, aligned with terminal-first philosophy
-- OpenTUI: AI-native, performant rendering layer, Zig backing ensures speed
-- TOML: More readable than JSON for users, AI-friendly
-- Zod: Runtime validation for user config, plugins, API responses
-- Biome: Single tool for format + lint, philosophy matches ours (minimal, fast)
+**CAN use (optional):**
+- GitHub Actions (for CI/CD)
+- MCP servers (Atlassian, Fathom, community-provided)
+- Commander.js (CLI argument parsing)
+- Chalk (terminal colors)
+- Ora (terminal spinners)
+- Remark (markdown parsing)
 
-### Programming Paradigm
+**CANNOT use:**
+- Prettier (use Biome only)
+- ESLint (use Biome only)
+- Vitest (use Bun's native test runner only)
+- npm, pip, or other package managers for core distribution
+- Docker or containers (users can add their own)
+- Databases (configuration only, no data storage)
+- External APIs (except MCP servers, which are optional)
 
-**FUNCTIONAL PROGRAMMING ONLY:**
-- ❌ No classes (use interfaces + functions)
-- ❌ No `class` keyword, ever
-- ❌ No OOP inheritance
-- ❌ No `this` binding
-- ✅ TypeScript interfaces for type definitions
-- ✅ Type aliases for composite types
-- ✅ Pure functions (same input → same output)
-- ✅ Immutable data structures (const, readonly, never mutate)
-- ✅ Higher-order functions (return functions, accept functions)
-- ❌ Skip: Currying, composition utilities (for now)
+**Rationale for restrictions:**
+- Every additional dependency increases installation friction
+- CtrlSpec must work in any environment (locked-down corporate laptops, servers, minimal VMs)
+- Users already have git and bash; adding more is reasonable; adding runtimes is not
 
-**Example (correct pattern):**
-```typescript
-// ✅ Good: Function + interface
-interface User {
-  id: string;
-  name: string;
-}
+### Dependencies
 
-const createUser = (id: string, name: string): User => ({
-  id,
-  name
-});
+**Required dependencies:**
+- Git (assumed present on developer machines)
+- Bash or POSIX sh (assumed present on Unix-like systems)
+- curl or wget (for downloading install script)
 
-const greetUser = (user: User): string => `Hello, ${user.name}`;
+**Optional dependencies:**
+- Atlassian MCP: Requires OAuth token from Jira/Confluence
+- Fathom MCP: Requires API key from Fathom.video
+- Text editor or IDE: Any editor that reads markdown
 
-// ❌ Bad: Class
-class User {
-  constructor(public id: string, public name: string) {}
-}
-```
-
-### Prohibited Technologies
-- **Classes**: No `class` keyword, no OOP. Use functions + interfaces.
-- **Electron**: Too heavy (100MB+), defeats terminal-native purpose
-- **Web frameworks** (React in browser, etc.): Terminal only, no GUI
-- **Lua for config**: Harder to validate, less AI-friendly than TOML
-- **Prettier**: Use Biome only
-- **ESLint**: Use Biome only
-- **Higher-order functions** (for now): Keep it simple, avoid currying/compose
-- **OOP libraries**: No class-based frameworks
-- **Node.js APIs outside Bun**: Bun only, no cross-runtime compatibility
-
-### Required Dependencies
-- `bun` (runtime)
-- `openTUI` (terminal UI)
-- `tree-sitter` (syntax highlighting)
-- `anthropic-sdk` (Claude API client)
-- `@types/node` (TypeScript types)
-
-### Decisions Baked In (Cannot Change Without Major Refactor)
-- **Modal editing system**: Vim-like is the interaction model
-- **Plugin architecture**: Core must stay minimal
-- **TOML config**: Not JSON, not YAML, not Lua
-- **Local-first**: No mandatory server connection
+**Forbidden dependencies:**
+- No npm packages in install script
+- No Python pip packages
+- No system package managers (yum, apt, brew)
+- No pre-compiled binaries (too risky, hard to distribute)
 
 ## Security Constraints
 
-### Authentication
-- **MVP**: No authentication required (local-only tool)
-- **Future (hosted version)**: Support OAuth2 for Modo Ventures SaaS
+### No Data Collection
 
-### Data Protection
-- **API keys**: Never store user's Claude/OpenAI keys in files; use secure OS credential storage where possible
-- **Encryption in transit**: TLS 1.3+ for all API calls
-- **Local data**: User's files are their responsibility (Ctrl is a text editor, not a backup service)
-- **Config files**: May contain API keys; warn users not to commit `.env` files
+**CtrlSpec does not:**
+- Collect telemetry or usage data
+- Track installations or users
+- Send data to external servers
+- Require authentication to GitHub
+- Phone home or report version information
 
-### Access Control
-- **Plugin permissions**: Fine-grained (filesystem read/write per path, network per domain, AI access separately)
-- **Audit logging**: MVP doesn't require it (local tool); future hosted version will log access
-- **No IP restrictions**: Local tool doesn't need them
+**Privacy:**
+- All documentation stays in user's local git repository
+- No documentation is uploaded or sent anywhere
+- MCP integrations are user-initiated; users provide credentials
 
-### Plugin Security
-- **Sandboxing**: All plugins must run in isolated WASM or Worker context
-- **No arbitrary system access**: Plugins can only access what editor permits
-- **Permission prompts**: Warn users if plugin requests unusual permissions
-- **Signed plugins** (future): Plugin marketplace will require signatures
+### Authentication & Authorization
+
+**CtrlSpec has no authentication:**
+- No user accounts, passwords, API keys (except for MCP integrations)
+- No permissions model (git permissions apply to documentation)
+- Documentation is part of repository; git controls access
+
+**MCP integrations:**
+- Atlassian MCP: User provides OAuth token (CtrlSpec doesn't store it)
+- Fathom MCP: User provides API key (CtrlSpec doesn't store it)
+- Both are optional; CtrlSpec works without them
+
+### Code Security
+
+**Supply chain security:**
+- Install script served from GitHub (assume GitHub is secure)
+- No external dependencies in script (can't compromise external packages)
+- Templates are static markdown (no code execution)
+- Security updates released via GitHub releases
+
+**Future considerations:**
+- Code signing for releases (gpg signatures)
+- SHA256 verification of downloads
+- Dependency audit for any future tooling
 
 ## Operational Constraints
 
-### Availability
-- **MVP**: No uptime SLA (local tool, user's responsibility)
-- **Hosted version**: Post-MVP, will define SLA (likely 99.9%)
-- **Offline-first**: MVP works without internet (graceful degradation for AI features)
+### Availability & Support
 
-### Monitoring
-- **MVP**: No telemetry by default
-- **Opt-in analytics**: Users can enable usage tracking (future)
-- **Error logging**: Ctrl can log errors locally for debugging
+**CtrlSpec is free and unsupported:**
+- No SLA or uptime guarantee
+- No support hours or response time commitment
+- Community-driven support (GitHub issues, discussions)
+- Best effort maintenance; no paid support offerings
 
-### Support
-- **MVP**: Community support via GitHub issues
-- **Future**: Email support for hosted version
-- **Documentation**: Comprehensive user guide + API reference required for v1.0
+**Update frequency:**
+- No guaranteed update schedule
+- Driven by bug reports, feature requests, community needs
+- Security fixes prioritized
 
-## Resource Constraints
+### Monitoring & Maintenance
 
-### Team
-- **MVP**: Solo developer or very small team (1-2 people)
-- **Post-MVP**: Need plugin developers community
-- **Skills required**: TypeScript, terminal UI, terminal protocol knowledge
-
-### Tools & Access
-- **Development**: IDE of choice (VS Code, Vim, etc. - eat your own dogfood, use Ctrl!)
-- **Testing**: Local testing, then early adopter feedback
-- **Distribution**: npm registry + GitHub releases for binaries
+**No monitoring required:**
+- CtrlSpec is a distribution package; nothing to monitor
+- GitHub Actions or similar can validate templates (future)
+- Community reports issues via GitHub
 
 ## Integration Constraints
 
-### APIs
-- **Claude API**: Rate limited, requires user's API key
-- **Alternative providers** (OpenAI, local models): Extensible via plugins
-- **MCP servers**: Will support integration (future phase 2)
+### With AI Tools
 
-### Legacy Systems
-- **N/A for MVP**: New greenfield project
+**Claude Code:**
+- Must use symlinks or direct file references
+- CLAUDE.md must point to docs/llm.md
+- .config/claude/mcp_config.json must point to .mcp.json
+
+**Cursor:**
+- Must use .cursorrules pointing to docs/llm.md
+- .cursor/ directory must contain mcp.json symlink
+
+**Other AI tools:**
+- AGENTS.md symlink for general AI tools
+- Support tool-specific conventions (requests welcome)
+
+### With MCP Servers
+
+**Atlassian MCP:**
+- Requires user to provide OAuth token
+- User can pull data into documentation manually
+- No automatic sync (one-way, on-demand)
+
+**Fathom MCP:**
+- Requires user to provide API key
+- User can search meetings and extract decisions
+- No automatic sync (one-way, on-demand)
+
+**Future MCP servers:**
+- Must be opt-in (disabled by default in .mcp.json)
+- Must include setup instructions
+- Must not require CtrlSpec-controlled services
 
 ## Known Limitations
 
-**These are acknowledged and will NOT be fixed in MVP:**
-- **Windows native binary**: MVP supports WSL/Git Bash only (native post-MVP)
-- **Collaborative editing**: Single-user only (future: Modo Ventures hosted version)
-- **Built-in terminal**: Uses system terminal (not embedded)
-- **Graphical debugger**: TUI-only, no graphical debugging
-- **Mouse support**: Keyboard-first (minimal mouse support, no click-to-edit)
-- **Accessibility**: Terminal accessibility limited (WCAG applies to terminal, not GUI)
+1. **No Windows native support**: PowerShell and cmd.exe not supported; requires Git Bash or WSL
+   - Impact: Windows users must use WSL2 or Git Bash for installation
+
+2. **No automatic documentation validation**: Templates can be filled incorrectly or left empty
+   - Impact: Quality depends on user effort (future: optional linting tool could help)
+
+3. **No version-specific template selection**: All projects get same templates
+   - Impact: Future projects can't have different templates based on project type
+   - Mitigation: Templates should be general-purpose; projects customize as needed
+
+4. **Symlink overwrite behavior**: If user already has CLAUDE.md, install script can fail or overwrite
+   - Impact: Users need to manually resolve conflicts on existing projects
+   - Mitigation: Clear documentation on handling existing files
+
+5. **No GUI installer**: Command-line only
+   - Impact: Non-technical users may find installation harder
+   - Rationale: Simpler distribution, lower maintenance burden
+
+6. **Documentation must be manually updated**: No automatic sync with external systems (except optional MCP)
+   - Impact: Documentation can get stale if not kept in sync with code
+   - Mitigation: docs/llm.md emphasizes keeping docs fresh
 
 ## Trade-offs Accepted
 
-- **Speed over completeness**: Fast MVP with core features > slow MVP with everything
-- **Local-first over cloud-native**: User owns their data, no server required for MVP
-- **Simplicity over flexibility**: TOML config is less flexible than Lua/Python but simpler
-- **Terminal-only over GUI**: Smaller scope, faster execution, clearer differentiation
-- **Bun over Node**: Faster, but smaller ecosystem (acceptable tradeoff)
-- **Minimal Vim compatibility**: 80% compatibility is better than 100% and shipping in 2 weeks
+1. **Simplicity over features**: Keep CtrlSpec minimal and focused
+   - We're giving up: Rich features, web UI, real-time collaboration
+   - Why: Lower maintenance burden, works offline, easy to understand
 
+2. **Markdown over rich formatting**: Only GitHub Flavored Markdown
+   - We're giving up: Custom formatting, styling, embedded media
+   - Why: Universal compatibility, renders in any text editor/platform
+
+3. **Bash over modern language**: Install script in bash instead of Python/Node
+   - We're giving up: Type safety, modern language features, easier debugging
+   - Why: No runtime dependencies, works on minimal systems, immediate compatibility
+
+4. **No enforcement**: Templates are optional, documentation updates are manual
+   - We're giving up: Guaranteed documentation quality, automated validation
+   - Why: Treats developers as adults, respects project autonomy
+
+5. **Community-maintained**: No commercial backing or guaranteed support
+   - We're giving up: Paid support, guaranteed uptime, dedicated maintenance
+   - Why: Transparent, sustainable, avoids vendor lock-in

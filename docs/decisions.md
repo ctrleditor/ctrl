@@ -3,6 +3,7 @@
 This is an index of major architectural and technical decisions. Full context for each decision is in the referenced git commit.
 
 ## Format
+
 Each decision includes:
 - **Date** - When the decision was made
 - **Title** - Brief description
@@ -11,156 +12,276 @@ Each decision includes:
 
 ## Decisions
 
-### 2026-01-22: Adopt Plugin-First Architecture
-- **Commit:** [TBD - after first commit]
+### 2025-01-19: Build CLI with command-first approach (check before init)
+- **Commit:** [613a016](https://github.com/ctrleditor/ctrlspec/commit/613a016)
 - **Status:** Active
-- **Summary:** Keep core minimal (buffer, modal system, config, plugin host); all language support, formatters, git integration, and UI features live as plugins
+- **Summary:** Start Phase 2 with `ctrlspec check` command, not `init`, to validate parsing pipeline early
 
-**Context:**
-- Core with everything bundled = bloated, slower startup, harder to maintain, limits community contribution
-- Core that's extensible = smaller surface area, faster iteration, community ownership
+**Decision Context:**
+Current `install.sh` already handles initialization. What's missing is inspection and validation. Building `check` first provides immediate value and validates the entire architecture before building UI.
+
+**Rationale:**
+- Validates core utilities (markdown parser, TODO detector, git scanner) are solid
+- Provides working tool in Week 1 instead of waiting for full framework
+- Can test immediately on CtrlSpec's own documentation
+- Better foundation for subsequent commands
+- Delivers value to users faster
+- Unblocks `sync` and `init` from relying on validation
 
 **Consequences:**
-- ✅ Faster startup, smaller memory footprint
-- ✅ Community can build features without waiting for releases
-- ✅ Users can disable features they don't need
-- ❌ Need robust plugin API and sandboxing
-- ❌ More work in plugin development guides and examples
+- `init` comes in Week 3 instead of Week 1
+- Slightly longer path to MVP but better architecture
+- Parser/validation are battle-tested before many users adopt
+- Backwards compatible with existing install.sh
 
 ---
 
-### 2026-01-22: Use TOML for All Configuration
-- **Commit:** [TBD]
+### 2025-01-19: Use TypeScript + Bun for CLI tooling
+- **Commit:** [613a016](https://github.com/ctrleditor/ctrlspec/commit/613a016)
 - **Status:** Active
-- **Summary:** Configuration (editor settings, keybindings, AI settings, plugins) via TOML files, not JSON or Lua
+- **Summary:** CLI implemented in TypeScript with Bun runtime instead of Bash
 
-**Context:**
-- TOML is human-readable (better for manual editing)
-- TOML can be validated via schema (helpful error messages)
-- TOML is AI-friendly (LLMs understand it well)
-- Alternative: Lua is flexible but hard to validate; JSON is rigid but not human-friendly
+**Decision Context:**
+Bash installation script works but CLI needs more sophisticated features (parsing, validation, interactive prompts, colored output). TypeScript + Bun provides modern DX without runtime complexity.
+
+**Rationale:**
+- TypeScript for type safety and developer experience
+- Bun is fast, has great npm support, works on all platforms
+- Cleaner than Bash for complex logic
+- Modern tooling matches contemporary JS ecosystem
+- Team familiarity (Erik uses TS regularly)
 
 **Consequences:**
-- ✅ Config is versionable in git
-- ✅ Easy to share team configs
-- ✅ Hot-reload support
-- ❌ TOML not as flexible as Lua (acceptable tradeoff)
-- ❌ Need TOML validation library
+- Introduces Bun dependency (but auto-installed via npm)
+- Package size increases (mitigated by npm bundling)
+- Can't run on systems without Node/Bun
+- Better developer experience and fewer bugs
+- Enables future features (MCP server, GUI, etc.)
 
 ---
 
-### 2026-01-22: Treat AI as Infrastructure, Not a Feature
-- **Commit:** [TBD]
+### 2024-01-15: Use Bash for installation script instead of Python/Node
+- **Commit:** [Initial commit](https://github.com/ctrleditor/ctrlspec)
 - **Status:** Active
-- **Summary:** Core provides AI platform (provider abstraction, context building, streaming); plugins consume it for specific features (chat, completions, refactoring)
+- **Summary:** Installation script must be POSIX-compatible bash with zero runtime dependencies
 
-**Context:**
-- Bolting AI on = inconsistent UX, repeated context building, hard to test
-- AI as platform = clean layering, plugins build coherent experiences, core stays focused
+**Decision Context:**
+CtrlSpec needs maximum compatibility across all Unix-like systems (Linux, macOS, WSL). Bash with no external dependencies ensures the installation works on minimal systems, locked-down corporate machines, and containers.
+
+**Rationale:**
+- Bash is pre-installed on virtually all Unix-like systems
+- No Python/Node means no dependency hell
+- Scripts can be audited before execution (security)
+- Instant execution (no runtime startup overhead)
+- Works on servers, containers, and edge devices
 
 **Consequences:**
-- ✅ Clean separation of concerns
-- ✅ Plugins can build custom AI workflows
-- ✅ Easy to swap AI providers
-- ❌ Core has more responsibility (need good platform design)
-- ❌ Testing AI features requires mock providers
+- Less comfortable for modern developers
+- Less type safety than Python/Node
+- Requires POSIX compatibility testing
+- Harder to debug
+- Limited to simple shell operations
+
+**Alternatives considered:**
+- Python: Would require python3, pip, potentially virtual environments
+- Node.js: Would require npm, node_modules, larger download
+- Go: Would require downloading binary, cross-platform compilation
+- Shell script: Clear winner for distribution
 
 ---
 
-### 2026-01-22: Bun as the Runtime
-- **Commit:** [TBD]
+### 2024-01-15: Use Markdown for templates instead of HTML/PDF/Confluence
+- **Commit:** [Initial commit](https://github.com/ctrleditor/ctrlspec)
 - **Status:** Active
-- **Summary:** Use Bun (package manager + runtime) instead of Node.js
+- **Summary:** All documentation templates must be GitHub Flavored Markdown stored in git
 
-**Context:**
-- Bun is faster (native bundler, faster startup, faster execution)
-- Bun is TypeScript-native (write config tooling directly)
-- Bun is less mature than Node but adequate for editor
-- OpenTUI targets Bun
+**Decision Context:**
+CtrlSpec's core value is keeping documentation version-controlled and close to code. Markdown ensures universal rendering and editing.
 
-**Consequences:**
-- ✅ Smaller binary size
-- ✅ Faster startup time
-- ✅ TypeScript first-class support
-- ❌ Smaller ecosystem than Node (some packages not compatible)
-- ❌ Fewer developers know Bun (onboarding friction)
-- ❌ Risk: Bun could be abandoned (mitigate by staying close to spec)
-
----
-
-### 2026-01-22: OpenTUI for Terminal Rendering
-- **Commit:** [TBD]
-- **Status:** Active
-- **Summary:** Use OpenTUI (TypeScript + Zig framework) for terminal rendering instead of Ratatui or Ncurses
-
-**Context:**
-- Ratatui is mature (Rust-based, popular)
-- OpenTUI is newer but TypeScript-native and AI-optimized
-- Direct Ncurses binding = lower-level control but more work
-
-**Consequences:**
-- ✅ TypeScript consistency (core and plugins same language)
-- ✅ Zig rendering layer = native performance
-- ✅ AI-native framework design
-- ❌ OpenTUI is 0.x (risk of breaking changes)
-- ⚠️ Mitigations: Fork if needed, stay close to upstream, abstract rendering layer
-
----
-
-### 2026-01-22: Modal Editing System (Vim-like)
-- **Commit:** [TBD]
-- **Status:** Active
-- **Summary:** Support normal, insert, visual, and command modes; all editing is modal
-
-**Context:**
-- Vim users are core target audience
-- Modal editing = fewer keybindings, context-dependent behavior, powerful motions
-- Non-modal = simpler to implement, easier for beginners
-- Tradeoff: Pick modal for target users (Vim experts)
-
-**Consequences:**
-- ✅ Vim users immediately productive
-- ✅ Powerful editing with few keys
-- ❌ Learning curve for non-Vim users
-- ❌ Not 100% Vim compatible (OK: 80% is enough)
-
----
-
-### 2026-01-22: Rope Data Structure for Buffers
-- **Commit:** [TBD]
-- **Status:** Active
-- **Summary:** Use rope (tree-based string) instead of gap buffer or array of lines
-
-**Context:**
-- Gap buffer: O(n) for insertions/deletions at arbitrary positions
-- Array of lines: Strings are immutable, copies happen
-- Rope: O(log n) for insertions/deletions, can handle 100MB+ files
-
-**Consequences:**
-- ✅ Efficient large file handling
-- ✅ Undo/redo via operational transform
-- ❌ More complex implementation
-- ❌ Need careful memory management
-
----
-
-### 2026-01-22: Local-First Architecture
-- **Commit:** [TBD]
-- **Status:** Active
-- **Summary:** MVP works entirely locally; no server required; future hosted version is optional
-
-**Context:**
-- Users own their data
+**Rationale:**
+- Renders on GitHub, GitLab, Gitea, and any text editor
+- Part of git workflow naturally
+- Future-proof (text is forever)
 - Works offline
-- No GDPR/privacy burden for MVP
-- Hosted version can be opt-in later (Modo Ventures)
+- No proprietary software needed
+- AI tools understand markdown
 
 **Consequences:**
-- ✅ No server costs for MVP
-- ✅ Users trust their data stays local
-- ✅ Can work on planes, trains, offline
-- ❌ No collaborative editing in MVP
-- ❌ Can't centralize telemetry/crash reports
+- No rich formatting, embedded media
+- Limited styling options
+- Must use ASCII art for diagrams
+- Not ideal for non-technical audiences
+
+**Alternatives considered:**
+- HTML: Better formatting, but breaks in text editors
+- PDF: Can't version in git, harder to edit
+- Confluence: Enterprise tool, requires account, proprietary
+- Notion: Cloud-based, doesn't integrate with git
+
+---
+
+### 2024-01-15: Create symlinks instead of copying documentation
+- **Commit:** [Initial commit](https://github.com/ctrleditor/ctrlspec)
+- **Status:** Active
+- **Summary:** Use symlinks to point AI tools to docs/llm.md instead of duplicating files
+
+**Decision Context:**
+AI tools expect documentation in specific locations (CLAUDE.md, .cursorrules). Symlinks keep a single source of truth while satisfying tool conventions.
+
+**Rationale:**
+- Single source of truth: edit docs/llm.md once, all tools see it
+- No duplication = no sync issues
+- Lower maintenance burden
+- Cleaner project structure
+- Works on Linux, macOS, WSL
+
+**Consequences:**
+- Doesn't work on native Windows (PowerShell/cmd)
+- Requires users on Windows to use WSL/Git Bash
+- Symlink targets can break if files move
+- Different behavior across filesystems
+- Some users may not understand symlinks
+
+**Alternatives considered:**
+- Duplicate files: Simple but maintenance nightmare
+- Hard links: Doesn't work with text editor symlink resolution
+- Copy on install: Defeats purpose of single source
+- @include syntax: Would need custom tooling
+
+**Mitigations:**
+- Document requirement for WSL on Windows
+- Handle broken symlinks gracefully in install script
+- Provide clear setup instructions
+
+---
+
+### 2024-01-15: Distribute via GitHub instead of npm/PyPI/Homebrew
+- **Commit:** [Initial commit](https://github.com/ctrleditor/ctrlspec)
+- **Status:** Active
+- **Summary:** Primary distribution channel is GitHub (raw.githubusercontent.com) with direct clone as fallback
+
+**Decision Context:**
+CtrlSpec is templates and scripts, not a compiled package. GitHub is the natural home for open source, already has CDN, and requires no additional setup.
+
+**Rationale:**
+- GitHub is already where developers are
+- Raw URL supports curl | sh pattern
+- CDN-backed (fast worldwide)
+- No dependency on PyPI, npm, Homebrew infrastructure
+- Releases are immutable
+- Community can fork if needed
+
+**Consequences:**
+- Requires network to install
+- Dependency on GitHub availability
+- Rate limiting from raw.githubusercontent.com (unlikely to hit)
+- No automatic updates once installed
+
+**Alternatives considered:**
+- npm: Adds JavaScript bias, requires Node
+- PyPI: Adds Python bias, requires Python
+- Homebrew: Limited to macOS/Linux, requires brew
+- Standalone binary: No build step, but what binary?
+
+**Future:**
+Could eventually add to Homebrew, AUR, but not priority given simplicity of current distribution.
+
+---
+
+### 2024-01-15: Make CtrlSpec stateless and offline-capable
+- **Commit:** [Initial commit](https://github.com/ctrleditor/ctrlspec)
+- **Status:** Active
+- **Summary:** No external dependencies, no cloud backend, all data stays in user's git repo
+
+**Decision Context:**
+CtrlSpec should be simple, trustworthy, and work in any environment including offline, corporate networks, and airgapped systems.
+
+**Rationale:**
+- Simpler to understand and audit
+- Works offline after installation
+- No privacy concerns (no data collection)
+- No cloud infrastructure to maintain
+- Resilient to external service outages
+- Can be used in sensitive environments
+
+**Consequences:**
+- Can't offer real-time collaboration features
+- No cloud sync between devices
+- Can't provide analytics on template usage
+- MCP integrations must be user-initiated
+
+**Alternatives considered:**
+- Cloud-backed: Would require auth, privacy policy, servers
+- Collaborative: Real-time editing, complex infrastructure
+- Analytics: Track installations, usage patterns
+
+---
+
+### 2024-01-15: Use Conventional Commits and include decisions in commit messages
+- **Commit:** [Initial commit](https://github.com/ctrleditor/ctrlspec)
+- **Status:** Active
+- **Summary:** Decisions captured in git commits become the authoritative history of "why"
+
+**Decision Context:**
+Rather than maintaining a separate decision database, embed decisions in commit messages where code changes happen.
+
+**Rationale:**
+- Decisions live next to code changes (atomic)
+- Git history is immutable audit trail
+- Searchable via git log
+- No separate tooling needed
+- Part of existing workflow
+- Easy to see what changed and why together
+
+**Consequences:**
+- Longer commit messages
+- Developers need training on format
+- Not all changes warrant decision entries
+- Decisions.md is just an index pointing to commits
+
+**Format:**
+```
+feat: description
+
+Decision: What was decided
+
+Context: Why we made this decision
+- Reason 1
+- Reason 2
+
+Consequences:
+- Trade-off 1
+- Trade-off 2
+```
+
+---
+
+### 2024-01-15: MIT License for maximum compatibility
+- **Commit:** [Initial commit](https://github.com/ctrleditor/ctrlspec)
+- **Status:** Active
+- **Summary:** All code and templates must be MIT-licensed, never GPL or copyleft
+
+**Decision Context:**
+CtrlSpec must be usable in any project (commercial, proprietary, closed-source). This requires maximum license permissiveness.
+
+**Rationale:**
+- MIT is permissive; no "share-alike" requirements
+- Can be used in commercial products
+- Can be used in proprietary projects
+- Can be incorporated into other open source projects
+- Widely understood and recognized
+- Simple and short license text
+
+**Consequences:**
+- Anyone can fork and commercialize
+- Can't enforce open source in derived works
+- Contributors give up future control
+- Community contributions may dilute project
+
+**Alternatives considered:**
+- GPL: Would require all derivatives to be open source
+- Apache 2.0: Good but adds patent language complexity
+- Proprietary: Defeats open source mission
 
 ---
 
@@ -170,40 +291,46 @@ When making a significant decision:
 
 1. **Capture it in your commit message:**
    ```
-   feat: implement new feature
+   feat: add support for Fathom MCP
 
-   Decision: [What was decided]
+   Decision: Integrate Fathom for meeting transcript analysis
 
-   Context: [Why we made this decision]
-   - Point 1
-   - Point 2
+   Context:
+   - Projects often discuss architecture in meetings
+   - Decision logs should capture these discussions
+   - Fathom MCP provides meeting search and summarization
+   - Decision extraction from meetings could populate decisions.md
 
    Consequences:
-   - Trade-off 1
-   - Trade-off 2
+   - Adds optional dependency (Fathom MCP)
+   - Fathom API key required
+   - Only works with Fathom-recorded meetings
+   - Opens up meeting analytics feature
    ```
 
 2. **Add an entry to this file:**
    - Use the commit date
-   - Link to the commit
-   - Keep the summary brief
+   - Link to the commit (use GitHub URL)
+   - Keep the summary to one line
+   - Include decision context and consequences
 
 3. **Update related docs** if the decision changes:
-   - architecture.md
-   - constraints.md
-   - requirements.md
+   - **architecture.md** if it changes system design
+   - **constraints.md** if it changes limitations or requirements
+   - **requirements.md** if it changes project goals
 
 ## What Warrants a Decision Entry?
 
 Add decisions that:
 - Change system architecture
-- Choose between technical alternatives
-- Affect multiple components
-- Have long-term impact
-- Future developers will wonder "why did we do it this way?"
+- Choose between technical alternatives (and reject other options)
+- Affect multiple components or user experience
+- Have long-term impact on project direction
+- Answer questions future developers will have: "Why did they do it this way?"
 
 Don't add:
-- Minor implementation details
-- Standard practices
-- Obvious choices
-- Temporary workarounds
+- Minor implementation details (variable naming, method factoring)
+- Standard practices (using git, GitHub workflows)
+- Obvious choices (formatting markdown, using .md extension)
+- Temporary workarounds ("TODO: fix this later")
+- Bug fixes (unless the fix reveals an important design decision)
