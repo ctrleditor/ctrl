@@ -180,10 +180,10 @@ This preserves Ctrl-specific docs while updating core templates.
 
 ## Current Project Status (Jan 22, 2026)
 
-**Project Name:** Ctrl (rebranded from Cap)
+**Project Name:** Ctrl
 **Repository:** https://github.com/ctrleditor/ctrl
 **Documentation:** Uses [CtrlSpec](https://github.com/ctrleditor/ctrlspec) templates
-**Status:** Core Editor MVP Complete
+**Status:** Core Editor Prototype - Week 1 Complete
 
 ### What's Working ✅
 - Modal editing system (normal, insert, visual, command modes)
