@@ -485,19 +485,22 @@ Includes:    SSO, audit logs, priority support, training
 
 ## Positioning vs Competitors
 
-| Aspect | Ctrl | Cursor | Zed | Neovim+AI |
-|--------|-----|--------|-----|-----------|
-| **Terminal-Native** | ✅ | ❌ (Electron) | ❌ (GUI) | ✅ |
-| **AI-Native** | ✅ | ✅ | ⚠️ (becoming) | ❌ (plugins) |
-| **Plugin Ecosystem** | ✅ (TypeScript) | ⚠️ (limited) | ⚠️ (limited) | ✅ (Lua) |
-| **Modal Editing** | ✅ (Vim-like) | ❌ | ❌ | ✅ |
-| **Multi-Provider AI** | ✅ | ❌ (Anthropic only) | ❌ (Anthropic only) | ⚠️ (plugins) |
-| **TOML Config** | ✅ | ❌ (JSON) | ❌ (TOML) | ❌ (Lua) |
-| **Startup Time** | < 100ms | ~500ms | ~200ms | ~50ms |
-| **Open Source** | ✅ (MIT) | ❌ | ✅ (Apache) | ✅ (Neovim core) |
-| **Learning Curve** | Medium (Vim) | Low | Low | High (Vim) |
+| Aspect | Ctrl | Cursor | Zed | Neovim+AI | Fresh |
+|--------|-----|--------|-----|-----------|-------|
+| **Terminal-Native** | ✅ | ❌ (Electron) | ❌ (GUI) | ✅ | ✅ |
+| **AI-Native** | ✅ | ✅ | ⚠️ (becoming) | ❌ (plugins) | ❌ |
+| **Plugin Ecosystem** | ✅ (TypeScript) | ⚠️ (limited) | ⚠️ (limited) | ✅ (Lua) | ⚠️ (TypeScript, small) |
+| **Modal Editing** | ✅ (Vim-like) | ❌ | ❌ | ✅ | ❌ (Vi mode optional) |
+| **Multi-Provider AI** | ✅ | ❌ (Anthropic only) | ❌ (Anthropic only) | ⚠️ (plugins) | ❌ (no AI) |
+| **TOML Config** | ✅ | ❌ (JSON) | ❌ (TOML) | ❌ (Lua) | ⚠️ (GUI settings) |
+| **LSP Support** | 🔨 (planned) | ✅ | ✅ | ✅ (plugins) | ✅ |
+| **Handles Large Files** | ✅ (rope) | ✅ | ✅ | ✅ | ✅ (10GB+) |
+| **Mouse Support** | ⚠️ (minimal) | ✅ | ✅ | ⚠️ | ✅ |
+| **Startup Time** | < 100ms | ~500ms | ~200ms | ~50ms | ~100ms |
+| **Open Source** | ✅ (MIT) | ❌ | ✅ (Apache) | ✅ (Neovim core) | ✅ |
+| **Learning Curve** | Medium (Vim) | Low | Low | High (Vim) | Very Low |
 
-**Ctrl's Unique Advantage:** The only tool that combines terminal-native + AI-native + accessible plugin development + elegant configuration.
+**Ctrl's Unique Advantage:** The only terminal-native editor that combines **AI-native architecture** (not bolted-on) + **modal editing for power users** + **TypeScript plugins** + **elegant TOML configuration**. Fresh offers great IDE features and accessibility, but lacks AI and modal editing. Neovim + AI plugins are powerful but require juggling separate tools and configuration. Cursor/Zed have better AI but require abandoning the terminal.
 
 ---
 

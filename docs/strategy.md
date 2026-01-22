@@ -101,6 +101,7 @@ ctrl plugin install x  # Plugin management
 | **OpenCode** | Open source, terminal TUI | Coding agent, not editor | We're a full editor with modal editing |
 | **Neovim + AI plugins** | Powerful, extensible | AI feels bolted on | AI-native from ground up |
 | **Claude Code** | Great AI, Anthropic-backed | Proprietary, VSCode-based | Open source, multi-provider |
+| **Fresh** | Terminal-native, LSP, handles large files, mouse support | No modal editing, no AI, standard keybindings | Modal editing + AI-native, power user oriented |
 
 **Competitive Moats:**
 1. **AI as Infrastructure** - Not a feature, but the foundation (via platform layer)
