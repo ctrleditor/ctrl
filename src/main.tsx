@@ -50,12 +50,15 @@ export const initializeApp = (uiConfig: UIConfigType, keybinds: KeybindsType): A
  */
 const main = async (): Promise<void> => {
 	// Load configuration from file (or use defaults if file doesn't exist)
-	const config = await loadConfig();
+	const { config, configFileExists } = await loadConfig();
 
 	const uiConfig = config.ui;
 	const keybinds = config.keybinds;
 
 	console.log("✓ Configuration loaded");
+	if (!configFileExists) {
+		console.warn("⚠ No config file detected - using defaults");
+	}
 	console.log("✓ Using Bun runtime");
 	console.log("✓ TypeScript + Functional FP + React");
 	console.log("✓ OpenTUI React rendering");
@@ -70,7 +73,7 @@ const main = async (): Promise<void> => {
 	) => {
 		watchConfig(async () => {
 			try {
-				const newConfig = await loadConfig();
+				const { config: newConfig } = await loadConfig();
 				callback({
 					ui: newConfig.ui,
 					keybinds: newConfig.keybinds,

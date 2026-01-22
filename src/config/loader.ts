@@ -18,10 +18,18 @@ export const getConfigPath = (): string => {
 };
 
 /**
+ * Configuration load result
+ */
+export type ConfigLoadResult = {
+	readonly config: ConfigType;
+	readonly configFileExists: boolean;
+};
+
+/**
  * Load configuration from file
  * Returns merged config with defaults, or defaults if file doesn't exist
  */
-export const loadConfig = async (): Promise<ConfigType> => {
+export const loadConfig = async (): Promise<ConfigLoadResult> => {
 	const configPath = getConfigPath();
 
 	try {
@@ -36,16 +44,25 @@ export const loadConfig = async (): Promise<ConfigType> => {
 		const validation = validateConfig(configData);
 		if (!validation.ok) {
 			console.warn("Config validation failed:", validation.error);
-			return mergeWithDefaults({});
+			return {
+				config: mergeWithDefaults({}),
+				configFileExists: true,
+			};
 		}
 
-		return mergeWithDefaults(validation.value);
+		return {
+			config: mergeWithDefaults(validation.value),
+			configFileExists: true,
+		};
 	} catch (err) {
 		// File doesn't exist or couldn't be parsed
 		if (err instanceof Error && "code" in err && err.code === "MODULE_NOT_FOUND") {
 			console.log(`Config file not found at ${configPath}`);
 			console.log(`To customize keybindings, create ${configPath}`);
-			return mergeWithDefaults({});
+			return {
+				config: mergeWithDefaults({}),
+				configFileExists: false,
+			};
 		}
 
 		// TOML parse error or other issue
@@ -53,7 +70,10 @@ export const loadConfig = async (): Promise<ConfigType> => {
 			`Failed to load config from ${configPath}:`,
 			err instanceof Error ? err.message : err
 		);
-		return mergeWithDefaults({});
+		return {
+			config: mergeWithDefaults({}),
+			configFileExists: false,
+		};
 	}
 };
 
