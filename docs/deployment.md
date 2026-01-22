@@ -168,8 +168,8 @@ ANTHROPIC_API_KEY=sk-ant-...     # Claude API key
 OPENAI_API_KEY=sk-...             # Alternative AI provider
 
 # Optional
-CTRL_CONFIG_DIR=~/.ctrl             # Where config files live (default: ~/.ctrl)
-CTRL_PLUGIN_DIR=~/.ctrl/plugins     # Where plugins are installed
+CTRL_CONFIG_DIR=~/.config/ctrl             # Where config files live (default: ~/.config/ctrl)
+CTRL_PLUGIN_DIR=~/.config/ctrl/plugins     # Where plugins are installed
 ```
 
 **For developers (building Ctrl):**
@@ -201,7 +201,7 @@ If/when Modo Ventures hosted version is built:
 ## Configuration Management
 
 ### User Configuration
-Users configure Ctrl via TOML files in `~/.ctrl/`:
+Users configure Ctrl via TOML files in `~/.config/ctrl/`:
 - `config.toml` - Editor settings
 - `keymaps.toml` - Keybindings
 - `ai.toml` - AI configuration
@@ -209,7 +209,7 @@ Users configure Ctrl via TOML files in `~/.ctrl/`:
 
 Users can version control these:
 ```bash
-ln -s ~/dotfiles/.ctrl ~/.ctrl
+ln -s ~/dotfiles/ctrl ~/.config/ctrl
 # Or symlink individual files
 ```
 

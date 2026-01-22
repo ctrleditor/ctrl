@@ -641,7 +641,7 @@ cache_ttl = 3600
 2. **Try inline completions** - Type some code, wait 500ms
 3. **Open chat** - Press `<leader>ac` and ask a question
 4. **Select code** - Press `v` to select, then `<leader>a` for AI actions
-5. **Configure** - Edit `~/.ctrl/ai.toml` to customize
+5. **Configure** - Edit `~/.config/ctrl/ai.toml` to customize
 
 ---
 
