@@ -9,10 +9,14 @@ This document explains how to effectively use AI coding assistants with this rep
 
 This repo uses documentation-as-context to help AI understand the project. All docs are in `docs/` directory.
 
+> **Note:** Ctrl uses [CtrlSpec](https://github.com/ctrleditor/ctrlspec) for documentation management.
+> To sync templates: `curl -fsSL https://ctrleditor.com/spec.sh | sh`
+
 ### Core Documentation (Read These First)
 - **[requirements.md](requirements.md)** - Business requirements and project goals
+- **[architecture.md](architecture.md)** - Technical architecture and system design
 - **[constraints.md](constraints.md)** - Hard limitations (performance, compatibility, licensing, etc.)
-- **[architecture.md](../ARCHITECTURE.md)** - Technical architecture and system design
+- **[ctrl-specific-constraints.md](ctrl-specific-constraints.md)** - OpenTUI/OpenCode patterns and pitfalls specific to Ctrl
 - **[decisions.md](decisions.md)** - Index of key decisions (full context in git commits)
 
 ### Development & Operations
@@ -146,12 +150,39 @@ Documentation lives with code and evolves with it:
 - If you find docs are wrong, fix them immediately
 - Stale docs are worse than no docs
 
+## Documentation Management via CtrlSpec
+
+Ctrl uses [CtrlSpec](https://github.com/ctrleditor/ctrlspec) for documentation templates and management:
+
+**Template docs** (from CtrlSpec):
+- `docs/requirements.md`, `architecture.md`, `constraints.md`, `decisions.md`
+- `docs/testing.md`, `deployment.md`, `llm.md`
+
+**Ctrl-specific docs** (in addition to templates):
+- `docs/ai-features.md` - User guide for AI features
+- `docs/ai-integration-architecture.md` - Phase 2 AI design
+- `docs/plugin-system-architecture.md` - Plugin system design
+- `docs/plugin-development.md` - Plugin developer guide
+- `docs/ctrl-specific-constraints.md` - OpenTUI/OpenCode patterns
+- `docs/development-guide.md` - Setup and coding patterns
+- `docs/strategy.md` - Business model and go-to-market
+- `docs/roadmap.md` - Project timeline
+
+**Syncing templates:**
+If CtrlSpec templates need updating:
+```bash
+curl -fsSL https://ctrleditor.com/spec.sh | sh
+```
+
+This preserves Ctrl-specific docs while updating core templates.
+
 ---
 
-## Current Project Status (Jan 23, 2026)
+## Current Project Status (Jan 22, 2026)
 
-**Project Name:** Ctrl
+**Project Name:** Ctrl (rebranded from Cap)
 **Repository:** https://github.com/ctrleditor/ctrl
+**Documentation:** Uses [CtrlSpec](https://github.com/ctrleditor/ctrlspec) templates
 **Status:** Core Editor MVP Complete
 
 ### What's Working ✅
