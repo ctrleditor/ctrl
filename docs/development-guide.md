@@ -169,6 +169,49 @@ bun src/cli/main.ts plugin --help
 
 **Note:** bunli will show a warning about missing `/.bunli/commands.gen.ts`. This is optional for development and can be generated with `bunli generate` if desired (adds type safety for generated command types).
 
+### Testing TUI Apps (IMPORTANT!)
+
+**Ctrl is a Terminal UI application. Testing requires special handling.**
+
+❌ **NEVER use `timeout` to kill the app**
+```bash
+# WRONG - Forces hard kill, leaves terminal broken
+timeout 5 bun run dev
+```
+
+✅ **ALWAYS send SIGINT (Ctrl+C) to exit gracefully**
+```typescript
+// Correct: Spawn process and exit with SIGINT
+const proc = Bun.spawn(["bun", "run", "dev"], { ... });
+await new Promise(resolve => setTimeout(resolve, 3000)); // Let it initialize
+
+// Test while running (e.g., modify config)
+writeFileSync(configPath, newConfig);
+await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for changes
+
+// Exit cleanly with SIGINT
+process.kill(proc.pid, "SIGINT");
+await new Promise(resolve => setTimeout(resolve, 1000)); // Let cleanup run
+
+// Now verify output
+const output = readFileSync(OUTPUT_FILE, "utf-8");
+```
+
+**Why This Matters:**
+- TUI apps manage terminal "raw mode" for keyboard input
+- On exit, they must restore cursor, echo, and clean up OpenTUI renderer
+- `timeout` forcibly kills the process → cleanup never runs → terminal broken
+- `SIGINT` triggers the app's exit handler → clean terminal restoration
+
+**Testing Checklist:**
+- [ ] App initializes without errors
+- [ ] App responds to keyboard (hjkl, Escape, Ctrl+C)
+- [ ] App exits cleanly on Ctrl+C (SIGINT)
+- [ ] Terminal is restored after exit (cursor visible, input echo works)
+- [ ] No leftover terminal artifacts
+
+See [testing.md](testing.md#testing-tui-terminal-ui-applications) for detailed examples.
+
 ### Building
 
 ```bash

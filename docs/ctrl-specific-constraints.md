@@ -646,6 +646,37 @@ try {
 
 ## G. Testing Constraints
 
+### G.0 Testing TUI Apps: Exit with SIGINT, Not Timeout (CRITICAL!)
+
+**This applies to ALL testing of Ctrl. No exceptions.**
+
+❌ **WRONG: Using `timeout` command**
+```bash
+timeout 5 bun run dev  # Hard kills → terminal broken
+```
+
+✅ **RIGHT: Send SIGINT (Ctrl+C)**
+```typescript
+process.kill(proc.pid, "SIGINT");  // Graceful exit
+await new Promise(r => setTimeout(r, 1000));  // Let cleanup finish
+```
+
+**Why:**
+- TUI apps restore terminal state on exit
+- `timeout` kills before cleanup runs
+- Results: no input echo, broken cursor, garbled text
+- Use SIGINT to trigger proper cleanup sequence
+
+**Every test must:**
+1. Spawn app with `Bun.spawn()`
+2. Wait for initialization
+3. Run test while app is running
+4. Send SIGINT to exit (`process.kill(pid, "SIGINT")`)
+5. Wait for cleanup (`setTimeout(1000)`)
+6. Then analyze output
+
+See docs/testing.md § Testing TUI Applications for full examples.
+
 ### G.1 Headless Testing: Mock Terminal, No Real TTY
 
 **Constraint:** Test modal state changes and rendering without needing interactive terminal in CI/CD.

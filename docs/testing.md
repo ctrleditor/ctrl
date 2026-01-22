@@ -99,6 +99,87 @@ bun test --filter="rope"   # Fuzzy match "rope" tests
 - **Before deployment**: Yes, full test suite blocks main branch merge
 - **GitHub Actions**: Run on every push to main/develop, on PRs
 
+## Testing TUI (Terminal UI) Applications
+
+**CRITICAL:** Ctrl is a TUI app, not a standard program. Testing requires special handling.
+
+### How to Exit the App Correctly
+
+❌ **DON'T use `timeout` command**
+```bash
+# WRONG - Will forcibly kill after N seconds, leaving terminal broken
+timeout 5 bun run dev
+```
+
+✅ **DO send SIGINT (Ctrl+C) to let the app exit gracefully**
+```bash
+# RIGHT - Allows the app's exit handler to run
+process.kill(proc.pid, "SIGINT");
+await new Promise(r => setTimeout(r, 1000)); // Give it time to cleanup
+```
+
+### Why This Matters
+
+TUI apps like Ctrl manage the terminal in "raw mode" (for keyboard input). On exit, they must:
+1. Disable raw mode
+2. Restore cursor position and visibility
+3. Clean up OpenTUI renderer
+
+**Sending SIGINT triggers the cleanup:**
+```typescript
+// src/ui/renderer.tsx - Exit sequence
+renderer.keyInput.on("keypress", (keyEvent: KeyEvent) => {
+  if ((keyEvent.ctrl && (key === "c" || key === "d")) || key === "q") {
+    shouldExit = true;  // ← SIGINT sets this
+    return;
+  }
+});
+
+// Then cleanup runs:
+try {
+  await renderer.destroy?.();  // Restore terminal state
+} catch {
+  // Ignore cleanup errors
+}
+process.exit(0);
+```
+
+**If you use `timeout`**, the process dies without running cleanup, leaving the terminal in a broken state (no input echo, broken cursor, etc.).
+
+### Testing Pattern for TUI Apps
+
+```typescript
+// ✅ CORRECT: Spawn process, test while running, exit with SIGINT
+const proc = Bun.spawn(["bun", "run", "dev"], {
+  stdout: "pipe",
+  stderr: "pipe",
+});
+
+// Wait for app to initialize
+await new Promise(resolve => setTimeout(resolve, 3000));
+
+// Test while app is running (e.g., modify config file)
+writeFileSync(configPath, modifiedConfig);
+await new Promise(resolve => setTimeout(resolve, 2000));
+
+// Exit cleanly with SIGINT
+process.kill(proc.pid, "SIGINT");
+await new Promise(resolve => setTimeout(resolve, 1000));
+
+// Now read captured output for verification
+const output = readFileSync(OUTPUT_FILE, "utf-8");
+// Assert on output
+```
+
+### Testing Checklist for TUI Features
+
+- [ ] App starts and renders without errors
+- [ ] App responds to keyboard input (hjkl, Escape, Ctrl+C)
+- [ ] App exits cleanly on Ctrl+C, Ctrl+D, or 'q' (no terminal artifacts)
+- [ ] Terminal is restored to normal state after exit (cursor visible, input echo on)
+- [ ] Config hot-reload works (file changes detected and applied while running)
+- [ ] No debug output corrupts terminal rendering
+
 ## Coverage Requirements
 
 ### Targets (Progressive)
