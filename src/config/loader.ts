@@ -26,19 +26,88 @@ export type ConfigLoadResult = {
 };
 
 /**
+ * Simple TOML parser for basic key-value pairs
+ * Handles the config format we use: simple sections and key=value pairs
+ * Note: This is a minimal parser suitable for our config format only.
+ * For complex TOML, use a proper library.
+ */
+const parseSimpleTOML = (content: string): Record<string, unknown> => {
+	const result: Record<string, unknown> = {};
+	let currentSection = result;
+
+	for (const line of content.split("\n")) {
+		const trimmed = line.trim();
+
+		// Skip empty lines and comments
+		if (!trimmed || trimmed.startsWith("#")) continue;
+
+		// Handle section headers [section.subsection]
+		if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+			const sectionPath = trimmed.slice(1, -1).split(".");
+			currentSection = result;
+
+			for (const part of sectionPath) {
+				if (!currentSection[part]) {
+					currentSection[part] = {};
+				}
+				currentSection = currentSection[part] as Record<string, unknown>;
+			}
+			continue;
+		}
+
+		// Handle key = value pairs
+		const eqIndex = trimmed.indexOf("=");
+		if (eqIndex > 0) {
+			const key = trimmed.slice(0, eqIndex).trim();
+			const valueStr = trimmed.slice(eqIndex + 1).trim();
+
+			// Parse value (string, number, boolean)
+			let value: unknown;
+			if (valueStr === "true") {
+				value = true;
+			} else if (valueStr === "false") {
+				value = false;
+			} else if ((valueStr.startsWith('"') && valueStr.endsWith('"')) ||
+					   (valueStr.startsWith("'") && valueStr.endsWith("'"))) {
+				// Remove quotes
+				value = valueStr.slice(1, -1);
+			} else if (!Number.isNaN(Number(valueStr)) && valueStr !== "") {
+				value = Number(valueStr);
+			} else {
+				// Treat as string
+				value = valueStr;
+			}
+
+			currentSection[key] = value;
+		}
+	}
+
+	return result;
+};
+
+/**
  * Load configuration from file
  * Returns merged config with defaults, or defaults if file doesn't exist
+ * Uses direct file reading to avoid module caching issues with hot-reload
  */
 export const loadConfig = async (): Promise<ConfigLoadResult> => {
 	const configPath = getConfigPath();
+	const { existsSync, readFileSync } = await import("node:fs");
 
 	try {
-		// Try to import TOML file
-		const tomlModule = await import(configPath, {
-			with: { type: "toml" },
-		});
+		// Check if file exists
+		if (!existsSync(configPath)) {
+			console.log(`Config file not found at ${configPath}`);
+			console.log(`To customize keybindings, create ${configPath}`);
+			return {
+				config: mergeWithDefaults({}),
+				configFileExists: false,
+			};
+		}
 
-		const configData = tomlModule.default;
+		// Read file directly from disk (not cached) to support hot-reload
+		const content = readFileSync(configPath, "utf-8");
+		const configData = parseSimpleTOML(content);
 
 		// Validate against schema
 		const validation = validateConfig(configData);
@@ -55,16 +124,6 @@ export const loadConfig = async (): Promise<ConfigLoadResult> => {
 			configFileExists: true,
 		};
 	} catch (err) {
-		// File doesn't exist or couldn't be parsed
-		if (err instanceof Error && "code" in err && err.code === "MODULE_NOT_FOUND") {
-			console.log(`Config file not found at ${configPath}`);
-			console.log(`To customize keybindings, create ${configPath}`);
-			return {
-				config: mergeWithDefaults({}),
-				configFileExists: false,
-			};
-		}
-
 		// TOML parse error or other issue
 		console.warn(
 			`Failed to load config from ${configPath}:`,

@@ -26,13 +26,17 @@ export const watchConfig = (callback: ConfigWatcherCallback): (() => void) => {
 		};
 	}
 
-	const watcher = watch(configPath, eventType => {
+	console.log(`Watching config file: ${configPath}`);
+
+	const watcher = watch(configPath, (eventType, filename) => {
+		console.log(`[Watch] File event: ${eventType} on ${filename}`);
+
 		// Debounce file change events (fs.watch can fire multiple times)
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 
 		debounceTimeout = setTimeout(() => {
 			if (eventType === "change" || eventType === "rename") {
-				console.log("Config file changed, reloading...");
+				console.log("[Watch] Triggering config reload after debounce");
 				callback();
 			}
 		}, 100);
