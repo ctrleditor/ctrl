@@ -6,19 +6,64 @@
 
 ## Why Ctrl?
 
-Ctrl is the editor that Vim users wished existed in the AI era. You get:
+**The core insight:** The killer feature isn't the AI—it's the escape hatch.
 
-- **Terminal-native:** Fast, minimal, keyboard-driven. No Electron bloat.
-- **AI-first architecture:** AI as platform, not bolted-on. Multi-provider (Claude, GPT-4, local models).
+Terminal developers face a false choice:
+
+- **Option A (Cursor, Zed):** AI that feels native, but you're trapped in a GUI
+- **Option B (Neovim + plugins):** Terminal that feels native, but AI is clearly an afterthought
+- **Option C (Ctrl):** Terminal-native AND AI-native, with the ability to completely disable AI when you don't want it
+
+### The Problem with Ambient AI
+
+Cursor and Zed treat AI as always-on. This creates hidden taxes:
+
+- **Ghost text you didn't ask for** disrupts flow state
+- **Context shipping on every keystroke** adds latency (even invisibly)
+- **Constant micro-decisions** ("should I use this suggestion?") create cognitive load
+
+Even if you ignore the suggestions, your brain knows they're there. Ctrl respects flow state: when you're editing, you're just editing. No ambient AI.
+
+### Modal AI: The Vim Philosophy Extended
+
+Ctrl extends Vim's core philosophy to AI:
+
+- **Normal mode.** Insert mode. Visual mode. **AI mode.**
+- **On when you want it.** Completely gone when you don't.
+
+```
+Standard editor:  Suggestions everywhere, all the time
+                 ↓
+Ctrl:            Only when you explicitly invoke it
+                 One keystroke to toggle on/off
+```
+
+When you invoke AI in Ctrl, you get full-power capabilities: agentic editing, deep context, multi-turn conversations. But until you ask, AI is completely absent.
+
+**This is the entire point.** Not a limitation—a feature.
+
+### What This Means in Practice
+
+You get:
+
+- **Terminal-native:** Fast, minimal, keyboard-driven. No Electron bloat. Works over SSH, in containers, on slow connections.
+- **AI-first architecture:** AI as infrastructure, not bolted-on. Multi-provider support (Claude, GPT-4, local models).
+- **Modal AI:** AI is optional at the keystroke level. Your control, your choice.
 - **Plugin ecosystem:** TypeScript plugins, npm distribution, zero configuration friction.
-- **Modal editing:** Vim-like workflows that feel native to the terminal.
+- **Modal editing:** Vim-like workflows that feel native.
 - **Elegant configuration:** TOML over Lua or JSON. Readable, versionable, AI-friendly.
 
-**What makes Ctrl different from Cursor/Copilot/Neovim+AI?**
-- Cursor is GUI-only (abandoned terminals)
-- Copilot requires VSCode
-- Neovim's AI feels like plugins bolted on
-- **Ctrl is terminal-native AND AI-native from day one**
+### How Ctrl Compares
+
+| Aspect | Cursor | Zed | Neovim+AI | Ctrl |
+|--------|--------|-----|-----------|------|
+| Terminal-Native | ❌ | ❌ | ✅ | ✅ |
+| AI-Native | ✅ | 🔄 | ❌ | ✅ |
+| **AI Optional** | ⚠️ (present, not absent) | ⚠️ (present, not absent) | ✅ | ✅ |
+| Modal Editing | ❌ | ❌ | ✅ | ✅ |
+| Flow State Friendly | ❌ (ambient suggestions) | ❌ (ambient suggestions) | ✅ | ✅ |
+
+**Ctrl's unique position:** The only editor combining terminal-native + AI-native + completely optional AI at the keystroke level.
 
 ---
 
@@ -70,21 +115,30 @@ bun run lint
 
 ## Documentation
 
+### Core Docs
+- **[Requirements](docs/requirements.md)** - Features, goals, and success metrics
+- **[Roadmap](docs/roadmap.md)** - Phase-by-phase plan and business model
+
 ### For Users
 - **[AI Features Guide](docs/ai-features.md)** - Chat, completions, AI actions
 - **[Configuration](docs/requirements.md#configuration)** - Keybindings, settings, plugins
 
 ### For Developers
+- **[Development Guide](docs/development-guide.md)** - Setup, workflow, OpenTUI patterns
 - **[Plugin Development](docs/plugin-development.md)** - Build and publish plugins
 - **[Architecture](docs/architecture.md)** - System design and technical approach
 - **[Testing](docs/testing.md)** - Testing strategy and guidelines
 - **[Decisions](docs/decisions.md)** - Key architectural decisions
 
 ### For Contributors & Stakeholders
-- **[Roadmap](docs/roadmap.md)** - Phase-by-phase plan and business model
-- **[Requirements](docs/requirements.md)** - Features, success metrics, goals
+- **[Strategy](docs/strategy.md)** - Business model, competitive analysis, financials
 - **[Constraints](docs/constraints.md)** - Hard limitations and performance targets
 - **[Build & Deploy](docs/deployment.md)** - Release process
+
+### For Architects
+- **[AI Integration Architecture](docs/ai-integration-architecture.md)** - Phase 2 AI design
+- **[Plugin System Architecture](docs/plugin-system-architecture.md)** - Plugin design
+- **[Ctrl-Specific Constraints](docs/ctrl-specific-constraints.md)** - OpenTUI/OpenCode patterns
 
 ### For AI Tools
 - **[CLAUDE.md](CLAUDE.md)** - AI assistant guide (symlinked to `docs/llm.md`)
@@ -276,6 +330,37 @@ See [Constraints](docs/constraints.md) for performance requirements and strategy
 
 ---
 
+## Resources
+
+### Learn More
+- **[OpenTUI](https://github.com/anomalyco/opentui)** (7.8k⭐) - Terminal UI framework Ctrl uses
+- **[OpenCode](https://github.com/anomalyco/opencode)** (83.8k⭐) - Reference implementation for TUI patterns
+- **[CtrlSpec](https://github.com/ctrleditor/ctrlspec)** - Documentation templates
+
+### Clone for Local Reference
+```bash
+# Clone OpenTUI to explore rendering patterns
+git clone https://github.com/anomalyco/opentui /tmp/opentui
+
+# Clone OpenCode to study performance and architecture
+git clone https://github.com/anomalyco/opencode /tmp/opencode
+```
+
+### Documentation Index
+See [docs/](docs/) directory for complete documentation:
+- `requirements.md` - Features and business goals
+- `architecture.md` - System design
+- `constraints.md` - Performance targets and hard limits
+- `ctrl-specific-constraints.md` - Patterns from OpenCode and OpenTUI
+- `decisions.md` - Key architectural decisions
+- `roadmap.md` - Timeline, business model, success metrics
+- `development-guide.md` - Setup, workflow, code patterns
+- `testing.md` - Testing strategy
+- `plugin-system-architecture.md` - Plugin design
+- `ai-integration-architecture.md` - AI interaction patterns
+
+---
+
 ## Contributing
 
 We'd love your help!
@@ -283,6 +368,7 @@ We'd love your help!
 **Before contributing, read:**
 - **[CLAUDE.md](CLAUDE.md)** - AI assistant guide + commit requirements
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design and technical approach
+- **[docs/development-guide.md](docs/development-guide.md)** - Setup and patterns
 
 **Commit Requirements:**
 - **MUST use [Conventional Commits v1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)**

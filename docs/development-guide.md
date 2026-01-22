@@ -362,9 +362,88 @@ See: [Bun Executable Docs](https://bun.com/docs/bundler/executables)
   - Linter Rules: https://biomejs.dev/linter/
   - Configuration: https://biomejs.dev/reference/configuration/
 
-### Terminal UI (Future)
-- **OpenTUI** - https://github.com/Terminalian/opentui
+### Terminal UI (Current)
+- **OpenTUI** - https://github.com/anomalyco/opentui (TypeScript + Zig, v0.1.74+)
+  - Official website: https://opentui.com/
+  - Monorepo with `@opentui/core`, `@opentui/react`, `@opentui/solid`
+  - Proven in production: OpenCode (83.8k⭐) built on same stack
 - **Tree-sitter** - https://tree-sitter.github.io/tree-sitter/
+
+#### OpenTUI Implementation Patterns
+
+**Setup & Rendering (`src/ui/renderer.tsx`):**
+```typescript
+import { createCliRenderer } from "@opentui/core";
+import { createRoot } from "@opentui/react";
+
+const renderer = await createCliRenderer({
+  exitOnCtrlC: false,          // Handle manually
+  useKittyKeyboard: {},        // Modern keyboard protocol
+});
+
+const root = createRoot(renderer);
+root.render(<AppComponent state={state} uiConfig={config} />);
+```
+
+**JSX Components:**
+```typescript
+// Box (flex container) with text
+<box width="100%" height={1} backgroundColor="#1a1a1a">
+  <text fg="#88BB22">NORMAL</text>
+  <text> | main.ts</text>
+</box>
+
+// Editor view with flex layout
+<box width="100%" height="100%" flexDirection="column">
+  <box flexGrow={1}>{/* Content */}</box>
+  <box height={1}>{/* Status bar */}</box>
+</box>
+```
+
+**Keystroke Handling:**
+```typescript
+renderer.keyInput.on("keypress", (keyEvent: KeyEvent) => {
+  const key = keyEvent.name;  // "a", "enter", "escape", etc.
+
+  // Handle keystroke (pure function)
+  const newState = handleKeystroke(currentState, key, keyEvent);
+
+  // Re-render on state change
+  if (newState !== currentState) {
+    currentState = newState;
+    root.render(<AppComponent state={currentState} />);
+  }
+});
+```
+
+**Critical Exit Sequence:**
+```typescript
+// MUST call renderer.destroy() then process.exit(0)
+// NO setTimeout, NO Promise.race—await synchronously
+try {
+  await renderer.destroy?.();
+} catch {
+  // Ignore cleanup errors
+}
+process.exit(0);
+```
+
+**Performance Targets:**
+- Keystroke latency: < 16ms (60fps, frame diffing handles optimization)
+- Startup time: < 100ms
+- Frame diffing: Automatic (only ANSI escapes for changed cells)
+
+**For Deeper Understanding:**
+```bash
+# Clone to /tmp to read actual source
+git clone https://github.com/anomalyco/opentui /tmp/opentui
+git clone https://github.com/anomalyco/opencode /tmp/opencode
+
+# Find rendering patterns
+grep -r "createRoot" /tmp/opentui/packages/react/src/
+grep -r "createCliRenderer" /tmp/opencode/src/
+find /tmp/opencode/src -name "*renderer*"
+```
 
 ### AI Integration
 - **Anthropic SDK** - https://github.com/anthropics/anthropic-sdk-python

@@ -982,10 +982,10 @@ node -e "const proc = require('child_process').spawn('./dist/ctrl', ['/tmp/test.
 ## O. References
 
 ### OpenTUI & OpenCode Source Analysis
-- [OpenTUI Repository](https://github.com/sst/opentui) - Frame diffing, rendering pipeline
-- [OpenCode Repository](https://github.com/sst/opencode) - Session management, context compaction
-- [Performance Issue #6172](https://github.com/sst/opencode/issues/6172) - O(n) rendering analysis
-- [Stream Ordering Issue #3596](https://github.com/sst/opencode/issues/3596) - SSE event ordering
+- [OpenTUI Repository](https://github.com/anomalyco/opentui) - Frame diffing, rendering pipeline, React integration
+- [OpenCode Repository](https://github.com/anomalyco/opencode) - Session management, context compaction, terminal TUI client/server architecture
+- See [opentui-reference.md](opentui-reference.md) for comprehensive Ctrl-specific OpenTUI implementation guide
+- **Note:** OpenTUI currently pre-1.0 (v0.1.74), proven in production by OpenCode (650k MAU)
 
 ### Related Ctrl Documentation
 - See [constraints.md](constraints.md) for technical stack constraints
