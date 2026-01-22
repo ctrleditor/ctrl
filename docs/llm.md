@@ -92,6 +92,26 @@ Suggest semver bumps based on commits:
 - `fix`, `perf` → PATCH
 - `docs`, `style`, `refactor`, `test`, `chore` → no version bump
 
+### Before Committing
+
+**ALWAYS ask before committing.** Do not auto-commit without explicit approval.
+
+**Process:**
+1. Make changes to code or docs
+2. Show the user what changed (`git diff`, test output, etc.)
+3. Ask: "Ready to commit?" or "Should I commit this?"
+4. Wait for confirmation
+5. Only then run `git commit`
+
+**Exception:** Only skip the ask if the user explicitly says "commit" as their request. Example: "fix the watcher and commit" = clear commitment request.
+
+**Never assume** that:
+- Showing working code = permission to commit
+- Changes are ready = permission to commit
+- Feedback like "that timeout won't work" = permission to commit
+
+Default to asking. It takes 5 seconds and prevents commits that shouldn't exist.
+
 ## Development Guidelines
 
 ### Before Making Changes
