@@ -1,0 +1,39 @@
+{
+	"name": "ctrl-editor",
+	"version": "0.1.0",
+	"description": "Hyperextensible AI-native terminal editor",
+	"type": "module",
+	"main": "dist/index.js",
+	"bin": {
+		"ctrl": "dist/cli/main.js"
+	},
+	"scripts": {
+		"dev": "bun run src/main.tsx",
+		"build": "bun build src/main.tsx --outdir dist --minify",
+		"build:binary": "bun build src/cli/main.ts --compile --outfile ctrl",
+		"test": "bun test",
+		"test:watch": "bun test --watch",
+		"test:coverage": "bun test --coverage",
+		"format": "biome format --write .",
+		"lint": "biome lint --write .",
+		"check": "biome check ."
+	},
+	"dependencies": {
+		"@bunli/core": "^0.4.0",
+		"@opentui/core": "^0.1.74",
+		"@opentui/react": "^0.1.74",
+		"react": "^19.2.3",
+		"react-dom": "^19.2.3",
+		"zod": "^3.22.4"
+	},
+	"devDependencies": {},
+	"engines": {
+		"bun": ">=1.0.0"
+	},
+	"license": "Apache-2.0",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/ctrleditor/ctrl"
+	},
+	"keywords": ["editor", "terminal", "vim", "ai", "coding", "typescript"]
+}
