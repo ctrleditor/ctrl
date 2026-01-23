@@ -12,7 +12,7 @@
 import type { AppState } from "@/types/app";
 
 import { loadConfig } from "@/config/loader";
-import { getConfigDefaults, mergeWithDefaults, validateConfig } from "@/config/schema";
+// import { getConfigDefaults, mergeWithDefaults, validateConfig } from "@/config/schema";
 import type { KeybindsType, UIConfigType } from "@/config/schema";
 import { watchConfig } from "@/config/watcher";
 import { createBuffer } from "@/core/buffer";
@@ -22,11 +22,10 @@ import { handleKeystroke, runApp } from "@/ui/renderer";
 
 /**
  * Initialize application
- * Pure function: creates initial state
  */
 export const initializeApp = (uiConfig: UIConfigType, keybinds: KeybindsType): AppState => {
 	// Create initial buffer
-	const buffer = createBuffer("main", "untitled.ts", "// Welcome to Ctrl Editor\n", "typescript");
+	const buffer = createBuffer("main", "untitled.ts", "// Welcome to Ctrl Editor\nHit ctrl+p for help", "typescript");
 
 	// Create modal system
 	const modal = createModalState();
@@ -42,6 +41,8 @@ export const initializeApp = (uiConfig: UIConfigType, keybinds: KeybindsType): A
 			ui: uiConfig,
 			keybinds,
 		},
+		selection: null,
+		clipboard: "",
 	};
 };
 

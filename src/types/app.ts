@@ -3,7 +3,7 @@
  */
 
 import type { KeybindsType, UIConfigType } from "../config/schema";
-import type { ModalState, TextBuffer } from "./index";
+import type { ModalState, Selection, TextBuffer } from "./index";
 
 /**
  * Application command registry type
@@ -25,4 +25,6 @@ export interface AppState {
 		readonly ui: UIConfigType;
 		readonly keybinds: KeybindsType;
 	};
+	readonly selection: Selection | null;
+	readonly clipboard: string; // Register for yank/paste
 }

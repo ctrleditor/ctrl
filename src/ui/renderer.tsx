@@ -15,6 +15,7 @@ import type { KeybindsType, UIConfigType } from "../config/schema";
 import { deleteRange, insertText } from "../core/buffer";
 import { closeHelpMenu, toggleHelpMenu } from "../core/modal";
 import type { AppState } from "../types/app";
+import type { Position, Selection } from "../types/index";
 
 /**
  * Type for keystroke handler function
@@ -40,6 +41,61 @@ const clampCursorPosition = (
 	const line = Math.max(0, Math.min(pos.line, lines.length - 1));
 	const column = Math.max(0, Math.min(pos.column, lines[line]?.length ?? 0));
 	return { line, column };
+};
+
+/**
+ * Get length of a specific line in the buffer
+ */
+const getLineLength = (buffer: string, line: number): number => {
+	const lines = buffer.split("\n");
+	return lines[line]?.length ?? 0;
+};
+
+/**
+ * Normalize selection so start is before end
+ */
+const normalizeSelection = (sel: Selection): { start: Position; end: Position } => {
+	const { anchor, active } = sel;
+	if (anchor.line < active.line || (anchor.line === active.line && anchor.column <= active.column)) {
+		return { start: anchor, end: active };
+	}
+	return { start: active, end: anchor };
+};
+
+/**
+ * Check if mode is a visual variant
+ */
+const isVisualMode = (mode: string): boolean => {
+	return mode === "visual" || mode === "visual-line" || mode === "visual-block";
+};
+
+/**
+ * Extract text from a selection range
+ */
+const extractSelectionText = (buffer: string, sel: Selection): string => {
+	const lines = buffer.split("\n");
+	const { start, end } = normalizeSelection(sel);
+
+	if (start.line === end.line) {
+		// Single line selection
+		return lines[start.line]?.slice(start.column, end.column) ?? "";
+	}
+
+	// Multi-line selection
+	const selectedLines: string[] = [];
+
+	// First line: from start column to end of line
+	selectedLines.push(lines[start.line]?.slice(start.column) ?? "");
+
+	// Middle lines: full lines
+	for (let i = start.line + 1; i < end.line; i++) {
+		selectedLines.push(lines[i] ?? "");
+	}
+
+	// Last line: from start to end column
+	selectedLines.push(lines[end.line]?.slice(0, end.column) ?? "");
+
+	return selectedLines.join("\n");
 };
 
 export const handleKeystroke = (
@@ -74,10 +130,38 @@ export const handleKeystroke = (
 				modal: { ...modal, currentMode: "insert", previousMode: "normal" },
 			};
 		}
-		if (key === "v") {
+		if (keyEvent?.ctrl && key === "v") {
+			// Enter visual-block mode (Ctrl+V)
+			return {
+				...state,
+				modal: { ...modal, currentMode: "visual-block", previousMode: "normal" },
+				selection: {
+					anchor: modal.cursorPosition,
+					active: modal.cursorPosition,
+				},
+			};
+		}
+		if (key === "V") {
+			// Enter visual-line mode (Shift+V)
+			const lineLength = getLineLength(state.buffer.content, modal.cursorPosition.line);
+			return {
+				...state,
+				modal: { ...modal, currentMode: "visual-line", previousMode: "normal" },
+				selection: {
+					anchor: { line: modal.cursorPosition.line, column: 0 },
+					active: { line: modal.cursorPosition.line, column: lineLength },
+				},
+			};
+		}
+		if (key === "v" && !keyEvent?.ctrl) {
+			// Enter visual mode (v)
 			return {
 				...state,
 				modal: { ...modal, currentMode: "visual", previousMode: "normal" },
+				selection: {
+					anchor: modal.cursorPosition,
+					active: modal.cursorPosition,
+				},
 			};
 		}
 		if (key === ":") {
@@ -120,15 +204,145 @@ export const handleKeystroke = (
 			);
 			return { ...state, modal: { ...modal, cursorPosition: newPos } };
 		}
+		if (key === "p" && state.clipboard) {
+			// Paste clipboard content at cursor position
+			const newBuffer = insertText(state.buffer, modal.cursorPosition, state.clipboard);
+			return {
+				...state,
+				buffer: newBuffer,
+				modal: {
+					...modal,
+					cursorPosition: {
+						line: modal.cursorPosition.line,
+						column: modal.cursorPosition.column + state.clipboard.length,
+					},
+				},
+			};
+		}
+	}
+
+	// Visual mode: navigation expands selection
+	if (isVisualMode(modal.currentMode)) {
+		if (key === "escape") {
+			// Exit visual mode and clear selection
+			return {
+				...state,
+				modal: { ...modal, currentMode: "normal", previousMode: modal.currentMode },
+				selection: null,
+			};
+		}
+
+		// Delete selection with 'd'
+		if (key === "d" && state.selection) {
+			const { start, end } = normalizeSelection(state.selection);
+
+			// Delete the selected range
+			const updatedBuffer = deleteRange(state.buffer, { start, end });
+
+			return {
+				...state,
+				buffer: updatedBuffer,
+				modal: {
+					...modal,
+					currentMode: "normal",
+					previousMode: modal.currentMode,
+					cursorPosition: start, // Move cursor to start of deleted range
+				},
+				selection: null,
+			};
+		}
+
+		// Yank (copy) selection with 'y'
+		if (key === "y" && state.selection) {
+			const selectedText = extractSelectionText(state.buffer.content, state.selection);
+
+			return {
+				...state,
+				clipboard: selectedText,
+				modal: {
+					...modal,
+					currentMode: "normal",
+					previousMode: modal.currentMode,
+				},
+				selection: null,
+			};
+		}
+
+		// hjkl navigation in visual mode
+		let newCursor: Position | null = null;
+
+		if (key === "h") {
+			newCursor = clampCursorPosition(
+				{ line: modal.cursorPosition.line, column: modal.cursorPosition.column - 1 },
+				state.buffer.content
+			);
+		} else if (key === "l") {
+			newCursor = clampCursorPosition(
+				{ line: modal.cursorPosition.line, column: modal.cursorPosition.column + 1 },
+				state.buffer.content
+			);
+		} else if (key === "j") {
+			newCursor = clampCursorPosition(
+				{ line: modal.cursorPosition.line + 1, column: modal.cursorPosition.column },
+				state.buffer.content
+			);
+		} else if (key === "k") {
+			newCursor = clampCursorPosition(
+				{ line: modal.cursorPosition.line - 1, column: modal.cursorPosition.column },
+				state.buffer.content
+			);
+		}
+
+		// If cursor moved, update selection
+		if (newCursor !== null) {
+			let newSelection: Selection | null = state.selection;
+
+			if (state.selection && modal.currentMode === "visual-line") {
+				// Visual-line mode: always select full lines
+				const anchorLine = state.selection.anchor.line;
+				const newCursorLine = newCursor.line;
+				const newLineLength = getLineLength(state.buffer.content, newCursorLine);
+
+				newSelection = {
+					anchor: { line: anchorLine, column: 0 },
+					active: { line: newCursorLine, column: newLineLength },
+				};
+			} else if (state.selection && modal.currentMode === "visual-block") {
+				// Visual-block mode: rectangular selection
+				const startLine = Math.min(state.selection.anchor.line, newCursor.line);
+				const endLine = Math.max(state.selection.anchor.line, newCursor.line);
+				const startCol = Math.min(state.selection.anchor.column, newCursor.column);
+				const endCol = Math.max(state.selection.anchor.column, newCursor.column);
+
+				// Store block selection metadata in anchor/active (simplified for now)
+				newSelection = {
+					anchor: { line: startLine, column: startCol },
+					active: { line: endLine, column: endCol },
+				};
+			} else if (state.selection) {
+				// Regular visual mode
+				newSelection = {
+					anchor: state.selection.anchor,
+					active: newCursor,
+				};
+			}
+
+			return {
+				...state,
+				modal: { ...modal, cursorPosition: newCursor },
+				selection: newSelection,
+			};
+		}
 	}
 
 	if (modal.currentMode === "insert") {
 		// Insert mode: text input
 		if (key === "escape") {
-			// Escape key
+			// Escape key - exit insert mode and clear any selection
 			return {
 				...state,
 				modal: { ...modal, currentMode: "normal", previousMode: "insert" },
+				selection: null,
 			};
 		}
 		// Vim-style navigation in insert mode with Ctrl prefix (Ctrl+hjkl)
@@ -364,24 +578,77 @@ const HelpMenu: React.FC<{ keybinds: KeybindsType }> = ({ keybinds }) => {
 };
 
 /**
- * Render buffer with cursor indicator
- * Shows cursor as an inverse character when in insert mode
+ * Render buffer with cursor and selection
+ * Shows cursor as inverse character, selection with background highlight
+ * Handles different selection modes (visual, visual-line, visual-block)
  */
 const renderBufferContent = (
 	buffer: string,
-	cursorPos: { line: number; column: number }
+	cursorPos: Position,
+	selection: Selection | null,
+	mode: string = "normal"
 ): string => {
 	const lines = buffer.split("\n");
+
+	// Calculate normalized selection range if selection exists
+	let selStart: Position | null = null;
+	let selEnd: Position | null = null;
+	if (selection) {
+		const normalized = normalizeSelection(selection);
+		selStart = normalized.start;
+		selEnd = normalized.end;
+	}
+
 	const displayLines = lines.map((line, lineIdx) => {
-		if (lineIdx === cursorPos.line) {
-			const before = line.slice(0, cursorPos.column);
-			const at = line[cursorPos.column] ?? " ";
-			const after = line.slice(cursorPos.column + 1);
-			// Show cursor character with inverse video (reverse colors)
-			// Using ANSI escape codes: \x1b[7m for reverse, \x1b[27m to reset
-			return `${before}\x1b[7m${at}\x1b[27m${after}`;
+		// Build line with selection and cursor, careful about character positions
+		let result = "";
+
+		for (let colIdx = 0; colIdx < line.length; colIdx++) {
+			const char = line[colIdx];
+			const isCursor = lineIdx === cursorPos.line && colIdx === cursorPos.column;
+
+			// Determine if character is selected
+			let isSelected = false;
+			if (selStart && selEnd) {
+				if (mode === "visual-block") {
+					// Rectangular selection
+					isSelected =
+						lineIdx >= selStart.line &&
+						lineIdx <= selEnd.line &&
+						colIdx >= selStart.column &&
+						colIdx <= selEnd.column;
+				} else if (mode === "visual-line") {
+					// Line selection
+					isSelected = lineIdx >= selStart.line && lineIdx <= selEnd.line;
+				} else {
+					// Regular visual mode
+					isSelected =
+						lineIdx >= selStart.line &&
+						lineIdx <= selEnd.line &&
+						((lineIdx === selStart.line && colIdx >= selStart.column) ||
+							(lineIdx > selStart.line && lineIdx < selEnd.line)) &&
+						((lineIdx === selEnd.line && colIdx < selEnd.column) || lineIdx < selEnd.line);
+				}
+			}
+
+			if (isCursor) {
+				// Cursor has priority - show as inverse video
+				result += `\x1b[7m${char}\x1b[27m`;
+			} else if (isSelected) {
+				// Selection - show with background color
+				result += `\x1b[48;5;8m${char}\x1b[0m`;
+			} else {
+				// Normal character
+				result += char;
+			}
 		}
-		return line;
+
+		// Handle cursor at end of line (beyond last character)
+		if (lineIdx === cursorPos.line && cursorPos.column >= line.length) {
+			result += `\x1b[7m \x1b[27m`;
+		}
+
+		return result;
 	});
 
 	return displayLines.join("\n");
@@ -402,7 +669,9 @@ const AppComponent: React.FC<{ state: AppState; uiConfig: UIConfigType }> = ({
 	const modeStyle = getModeStyle(state.modal.currentMode, uiConfig);
 	const bufferContent = renderBufferContent(
 		state.buffer.content || "// Welcome to Ctrl Editor\n",
-		state.modal.cursorPosition
+		state.modal.cursorPosition,
+		state.selection,
+		state.modal.currentMode
 	);
 
 	return (
