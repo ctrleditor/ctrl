@@ -52,6 +52,21 @@ export const UIConfigSchema = z.object({
 			commandMode: z.string().default("#FFFF00"),
 			statusBarBg: z.string().default("#1a1a1a"),
 			textFg: z.string().default("#FFFFFF"),
+			syntax: z
+				.object({
+					keyword: z.string().default("#569CD6"),     // Blue
+					string: z.string().default("#CE9178"),      // Orange
+					number: z.string().default("#B5CEA8"),      // Green
+					comment: z.string().default("#6A9955"),     // Green
+					type: z.string().default("#4EC9B0"),        // Teal
+					function: z.string().default("#DCDCAA"),    // Yellow
+					variable: z.string().default("#9CDCFE"),    // Light blue
+					operator: z.string().default("#D4D4D4"),    // White
+					punctuation: z.string().default("#808080"), // Gray
+					constant: z.string().default("#4FC1FF"),    // Cyan
+					property: z.string().default("#9CDCFE"),    // Light blue
+				})
+				.optional(),
 		})
 		.optional(),
 	lineNumbers: z.boolean().default(true),
@@ -59,6 +74,11 @@ export const UIConfigSchema = z.object({
 });
 
 export type UIConfigType = z.infer<typeof UIConfigSchema>;
+
+/**
+ * Syntax colors type extracted from UI config
+ */
+export type SyntaxColorsType = Exclude<UIConfigType["colors"], undefined>["syntax"];
 
 /**
  * Keybinds configuration schema
@@ -136,7 +156,29 @@ type Result<T, E> =
 export const getConfigDefaults = (): ConfigType => ({
 	editor: EditorConfigSchema.parse({}),
 	ai: AIConfigSchema.parse({}),
-	ui: UIConfigSchema.parse({}),
+	ui: UIConfigSchema.parse({
+		colors: {
+			normalMode: "#88BB22",
+			insertMode: "#22AAFF",
+			visualMode: "#FF9922",
+			commandMode: "#FFFF00",
+			statusBarBg: "#1a1a1a",
+			textFg: "#FFFFFF",
+			syntax: {
+				keyword: "#569CD6",
+				string: "#CE9178",
+				number: "#B5CEA8",
+				comment: "#6A9955",
+				type: "#4EC9B0",
+				function: "#DCDCAA",
+				variable: "#9CDCFE",
+				operator: "#D4D4D4",
+				punctuation: "#808080",
+				constant: "#4FC1FF",
+				property: "#9CDCFE",
+			},
+		},
+	}),
 	keybinds: KeybindsSchema.parse({}),
 });
 

@@ -43,6 +43,7 @@ export const initializeApp = (uiConfig: UIConfigType, keybinds: KeybindsType): A
 		},
 		selection: null,
 		clipboard: "",
+		syntax: null,
 	};
 };
 

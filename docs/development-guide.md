@@ -173,13 +173,16 @@ bun src/cli/main.ts plugin --help
 
 **Ctrl is a Terminal UI application. Testing requires special handling.**
 
+**🚨 CRITICAL LLM RULE: NEVER USE `timeout` - ALWAYS USE SIGINT 🚨**
+
 ❌ **NEVER use `timeout` to kill the app**
 ```bash
 # WRONG - Forces hard kill, leaves terminal broken
 timeout 5 bun run dev
+# This is true for: timeout, kill -9, or any force-kill
 ```
 
-✅ **ALWAYS send SIGINT (Ctrl+C) to exit gracefully**
+✅ **ALWAYS send SIGINT (Ctrl+C) only**
 ```typescript
 // Correct: Spawn process and exit with SIGINT
 const proc = Bun.spawn(["bun", "run", "dev"], { ... });
@@ -202,6 +205,13 @@ const output = readFileSync(OUTPUT_FILE, "utf-8");
 - On exit, they must restore cursor, echo, and clean up OpenTUI renderer
 - `timeout` forcibly kills the process → cleanup never runs → terminal broken
 - `SIGINT` triggers the app's exit handler → clean terminal restoration
+
+**When Running from CLI:**
+```bash
+bun run dev          # Start editor
+# ... use normally ...
+# Ctrl+C to exit gracefully
+```
 
 **Testing Checklist:**
 - [ ] App initializes without errors
@@ -230,7 +240,9 @@ bun run build:binary
 ctrl/
 ├── src/
 │   ├── types/                  # TypeScript interfaces (no classes!)
-│   │   └── index.ts           # All type definitions
+│   │   ├── index.ts           # Core type definitions
+│   │   ├── app.ts             # AppState interface
+│   │   └── syntax.ts          # SyntaxToken, SyntaxHighlighting types
 │   │
 │   ├── core/                   # Core editor functionality
 │   │   ├── buffer/            # Text buffer operations (immutable)
@@ -246,15 +258,23 @@ ctrl/
 │   │   │   ├── registry.ts    # registerCommand, executeCommand, etc
 │   │   │   └── index.ts       # Barrel export
 │   │   │
+│   │   ├── syntax/            # Syntax highlighting
+│   │   │   ├── parser.ts      # Tree-sitter integration
+│   │   │   ├── parser.test.ts # Parser unit tests
+│   │   │   └── index.ts       # Barrel export
+│   │   │
 │   │   └── index.ts           # Core barrel export
 │   │
 │   ├── config/                 # Configuration & validation
-│   │   ├── schema.ts          # Zod schemas for validation
+│   │   ├── schema.ts          # Zod schemas + syntax colors
 │   │   └── index.ts           # Barrel export
 │   │
 │   ├── platform/              # AI platform (future)
 │   ├── plugins/               # Plugin system (future)
-│   ├── ui/                    # Terminal UI (future, OpenTUI)
+│   ├── ui/                    # Terminal UI (OpenTUI)
+│   │   ├── renderer.tsx       # React component rendering (text segments)
+│   │   └── themes/            # Color schemes (Gogh integration, coming)
+│   │
 │   │
 │   ├── cli/                   # Command-line interface (bunli)
 │   │   ├── commands/          # CLI command definitions

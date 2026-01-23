@@ -4,6 +4,7 @@
 
 import type { KeybindsType, UIConfigType } from "../config/schema";
 import type { ModalState, Selection, TextBuffer } from "./index";
+import type { SyntaxHighlighting } from "./syntax";
 
 /**
  * Application command registry type
@@ -27,4 +28,5 @@ export interface AppState {
 	};
 	readonly selection: Selection | null;
 	readonly clipboard: string; // Register for yank/paste
+	readonly syntax: SyntaxHighlighting | null; // Syntax highlighting tokens
 }

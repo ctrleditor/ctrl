@@ -27,6 +27,7 @@
               gotools
               rustup
               rust-analyzer
+              tree-sitter
               typescript-language-server
               uv
             ];

@@ -1,9 +1,21 @@
 # LLM Assistant Guide
 
+> **CRITICAL:** Read `.guardrails.md` FIRST before any work. It contains mandatory rules for TUI testing.
+
 > **Note:** This file may be symlinked as CLAUDE.md, AGENTS.md, .cursorrules, etc.
 > for different AI coding tools. Edit `docs/llm.md` directly.
 
 This document explains how to effectively use AI coding assistants with this repository.
+
+## 🚨 MANDATORY GUARDRAILS (Read First!)
+
+**BEFORE DOING ANY TESTING OR BASH COMMANDS:**
+- Read `.guardrails.md` - Contains TUI testing rules that MUST be followed
+- Ctrl is a Terminal UI app - special rules apply
+- Key rule: **NEVER use `timeout` on TUI apps. ONLY use SIGINT via `process.kill(pid, "SIGINT")`**
+- Violating this breaks the developer's terminal and requires shell restart
+
+See `.guardrails.md` for complete rules and rationale.
 
 ## Documentation Structure
 
@@ -198,12 +210,12 @@ This preserves Ctrl-specific docs while updating core templates.
 
 ---
 
-## Current Project Status (Jan 22, 2026)
+## Current Project Status (Jan 23, 2026)
 
 **Project Name:** Ctrl
 **Repository:** https://github.com/ctrleditor/ctrl
 **Documentation:** Uses [CtrlSpec](https://github.com/ctrleditor/ctrlspec) templates
-**Status:** Core Editor Prototype - Week 1 Complete
+**Status:** Core Editor Prototype - Syntax Highlighting Complete
 
 ### What's Working ✅
 - Modal editing system (normal, insert, visual, command modes)
@@ -211,6 +223,9 @@ This preserves Ctrl-specific docs while updating core templates.
 - Vim-style hjkl navigation (h=left, j=down, k=up, l=right)
 - Config file loading from ~/.config/ctrl/config.toml (XDG compliant)
 - Config-driven UI colors and keybindings (TOML with Zod validation)
+- **Syntax highlighting** with per-token colored rendering (TypeScript/JavaScript)
+- **Asynchronous parsing** with tree-sitter (debounced 100ms)
+- **11 syntax token types** (keywords, strings, types, functions, comments, etc.)
 - Command palette accessible via `:` in normal mode
 - Help menu (Ctrl+P) showing all keybindings
 - Clean exit (q, Ctrl+C, Ctrl+D) without shell artifacts
@@ -218,17 +233,18 @@ This preserves Ctrl-specific docs while updating core templates.
 - React + OpenTUI rendering
 
 ### Known Issues ⚠️
-- Config hot-reload doesn't work (file watching implemented but needs debugging)
-- Visual mode exists but selection not fully implemented
+- Keywords not yet captured by tree-sitter highlights query (will improve with LSP)
 - Command mode shows palette but commands not yet executed
+- (Resolved) Config hot-reload now working with dual-mode file watcher
+- (Resolved) Visual mode selection fully implemented
 
-### Next Phase 🔨
-- AI chat interface
-- Inline completions (ghost text)
-- LSP integration for TypeScript
-- Syntax highlighting
-- Plugin system
-- Multiple buffers/split windows
+### Next Phase 🔨 (Starting Now)
+1. **Gogh Theme Integration** - 300+ color schemes from https://github.com/Gogh-Co/Gogh
+2. **LSP Integration** - TypeScript language server for better highlighting
+3. **AI chat interface**
+4. **Inline completions** (ghost text)
+5. **Plugin system**
+6. **Multiple buffers/split windows**
 
 ### Critical Code Patterns to Know
 
@@ -259,17 +275,24 @@ This pattern ensures clean terminal state without shell artifacts (tested with z
 ### File Structure Overview
 ```
 src/
-├── main.tsx                 # App entry, init
-├── ui/renderer.tsx          # React rendering + keystroke handling
+├── main.tsx                           # App entry, init
+├── ui/
+│   ├── renderer.tsx                   # React rendering + keystroke handling
+│   │                                  # Includes TextSegment rendering for syntax colors
+│   └── themes/                        # (Coming soon) Gogh theme integration
 ├── core/
-│   ├── buffer/             # Text buffer management
-│   ├── modal/              # Mode system (normal, insert, visual, command)
-│   └── commands/           # Command registry
+│   ├── buffer/                        # Text buffer management
+│   ├── modal/                         # Mode system (normal, insert, visual, command)
+│   ├── commands/                      # Command registry
+│   └── syntax/                        # Syntax highlighting
+│       ├── parser.ts                  # Tree-sitter integration
+│       └── parser.test.ts             # Parser unit tests
 ├── config/
-│   ├── loader.ts           # Load ~/.config/ctrl/config.toml
-│   ├── schema.ts           # Zod schemas + defaults
-│   └── watcher.ts          # File watching (not working yet)
+│   ├── loader.ts                      # Load ~/.config/ctrl/config.toml
+│   ├── schema.ts                      # Zod schemas + syntax colors
+│   └── watcher.ts                     # File watching (dual-mode, working)
 └── types/
-    ├── app.ts              # AppState interface
-    └── index.ts            # Core type definitions
+    ├── app.ts                         # AppState interface (includes syntax field)
+    ├── syntax.ts                      # SyntaxToken, SyntaxHighlighting types
+    └── index.ts                       # Core type definitions
 ```

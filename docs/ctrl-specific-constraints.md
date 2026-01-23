@@ -650,15 +650,24 @@ try {
 
 **This applies to ALL testing of Ctrl. No exceptions.**
 
+**CLAUDE/LLM RULE: DO NOT USE `timeout` IN BASH COMMANDS FOR TUI TESTING. EVER.**
+
 ❌ **WRONG: Using `timeout` command**
 ```bash
 timeout 5 bun run dev  # Hard kills → terminal broken
+# This includes: timeout, kill -9, or any force-kill mechanism
 ```
 
-✅ **RIGHT: Send SIGINT (Ctrl+C)**
+✅ **RIGHT: Send SIGINT (Ctrl+C) in code**
 ```typescript
 process.kill(proc.pid, "SIGINT");  // Graceful exit
 await new Promise(r => setTimeout(r, 1000));  // Let cleanup finish
+```
+
+**When testing from CLI, use interactive mode only:**
+```bash
+bun run dev
+# Ctrl+C when done
 ```
 
 **Why:**

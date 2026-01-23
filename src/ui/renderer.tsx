@@ -11,11 +11,22 @@ import { createCliRenderer } from "@opentui/core";
 import type { KeyEvent } from "@opentui/core/lib/KeyHandler";
 import { createRoot } from "@opentui/react";
 
-import type { KeybindsType, UIConfigType } from "../config/schema";
+import type { KeybindsType, SyntaxColorsType, UIConfigType } from "../config/schema";
 import { deleteRange, insertText } from "../core/buffer";
 import { closeHelpMenu, toggleHelpMenu } from "../core/modal";
+import { parseFileForHighlighting } from "../core/syntax/parser";
 import type { AppState } from "../types/app";
 import type { Position, Selection } from "../types/index";
+import type { SyntaxHighlighting } from "../types/syntax";
+
+/**
+ * Text segment with optional color
+ * Used for rendering buffer with syntax highlighting
+ */
+interface TextSegment {
+	text: string;
+	fg?: string; // hex color, undefined for default
+}
 
 /**
  * Type for keystroke handler function
@@ -415,7 +426,7 @@ export const handleKeystroke = (
 				},
 			};
 		}
-		if (key.length === 1 && /^[a-zA-Z0-9\s\.\,\;\:\'\"\-_\[\]\{\}\(\)=/\\|!@#$%^&*~`]$/.test(key)) {
+		if (key.length === 1 && /^[a-zA-Z0-9\s.,;:'"\-_[\]{}()=/\\|!@#$%^&*~`]$/.test(key)) {
 			// Regular character - insert into buffer at cursor position
 			const newBuffer = insertText(state.buffer, modal.cursorPosition, key);
 			return {
@@ -468,7 +479,7 @@ export const handleKeystroke = (
 				},
 			};
 		}
-		if (key.length === 1 && /^[a-zA-Z0-9\s\.\,\;\:\'\"\-_]$/.test(key)) {
+		if (key.length === 1 && /^[a-zA-Z0-9\s.,;:'"\-_]$/.test(key)) {
 			// Add character to command buffer
 			return {
 				...state,
@@ -481,6 +492,45 @@ export const handleKeystroke = (
 	}
 
 	return state;
+};
+
+/**
+ * Convert hex color to RGB components for ANSI codes
+ * Example: "#569CD6" → "86;156;214"
+ */
+const hexToRgb = (hex: string): string => {
+	const r = Number.parseInt(hex.slice(1, 3), 16);
+	const g = Number.parseInt(hex.slice(3, 5), 16);
+	const b = Number.parseInt(hex.slice(5, 7), 16);
+	return `${r};${g};${b}`;
+};
+
+/**
+ * Parse buffer for syntax highlighting
+ * Writes buffer to temp file and invokes tree-sitter
+ */
+const parseBufferSyntax = async (buffer: string, filePath: string, language: string): Promise<SyntaxHighlighting | null> => {
+	if (language !== "typescript" && language !== "javascript" && language !== "tsx" && language !== "jsx") {
+		return null; // Only support TS/JS initially
+	}
+
+	try {
+		// Write buffer to temp file for tree-sitter parsing
+		const tempFile = `/tmp/ctrl-${Date.now()}.${language === "typescript" ? "ts" : language === "tsx" ? "tsx" : language === "jsx" ? "jsx" : "js"}`;
+		await Bun.write(tempFile, buffer);
+
+		// Parse with tree-sitter
+		const result = await parseFileForHighlighting(tempFile, language);
+
+		if (!result) return null;
+
+		return {
+			tokens: result.tokens,
+			lastParsed: Date.now(),
+		};
+	} catch {
+		return null;
+	}
 };
 
 /**
@@ -578,17 +628,52 @@ const HelpMenu: React.FC<{ keybinds: KeybindsType }> = ({ keybinds }) => {
 };
 
 /**
- * Render buffer with cursor and selection
- * Shows cursor as inverse character, selection with background highlight
- * Handles different selection modes (visual, visual-line, visual-block)
+ * Render buffer with cursor, selection, and syntax highlighting
+ * Returns array of text segments with optional colors
+ *
+ * Segments are rendered by AppComponent as individual <text fg={color}> elements
+ * This enables syntax highlighting with OpenTUI's color properties
  */
 const renderBufferContent = (
 	buffer: string,
 	cursorPos: Position,
 	selection: Selection | null,
-	mode: string = "normal"
-): string => {
+	mode: string = "normal",
+	syntax: SyntaxHighlighting | null = null,
+	syntaxColors: SyntaxColorsType | undefined = undefined
+): TextSegment[] => {
 	const lines = buffer.split("\n");
+
+	// Build token lookup map for future use when rendering with React elements
+	// (currently unused - colors require per-token <text> elements instead of ANSI codes)
+	const tokenMap = new Map<string, string>();
+	if (syntax && syntaxColors) {
+		for (const token of syntax.tokens) {
+			// Map all positions covered by this token
+			if (token.startLine === token.endLine) {
+				// Single-line token
+				for (let col = token.startColumn; col < token.endColumn; col++) {
+					tokenMap.set(`${token.startLine}:${col}`, token.tokenType);
+				}
+			} else {
+				// Multi-line token (strings, comments)
+				// Handle first line
+				for (let col = token.startColumn; col < (lines[token.startLine]?.length ?? 0); col++) {
+					tokenMap.set(`${token.startLine}:${col}`, token.tokenType);
+				}
+				// Handle middle lines
+				for (let line = token.startLine + 1; line < token.endLine; line++) {
+					for (let col = 0; col < (lines[line]?.length ?? 0); col++) {
+						tokenMap.set(`${line}:${col}`, token.tokenType);
+					}
+				}
+				// Handle last line
+				for (let col = 0; col < token.endColumn; col++) {
+					tokenMap.set(`${token.endLine}:${col}`, token.tokenType);
+				}
+			}
+		}
+	}
 
 	// Calculate normalized selection range if selection exists
 	let selStart: Position | null = null;
@@ -599,10 +684,11 @@ const renderBufferContent = (
 		selEnd = normalized.end;
 	}
 
-	const displayLines = lines.map((line, lineIdx) => {
-		// Build line with selection and cursor, careful about character positions
-		let result = "";
+	// Build segments for rendering
+	const segments: TextSegment[] = [];
 
+	lines.forEach((line, lineIdx) => {
+		// Process each character in the line
 		for (let colIdx = 0; colIdx < line.length; colIdx++) {
 			const char = line[colIdx];
 			const isCursor = lineIdx === cursorPos.line && colIdx === cursorPos.column;
@@ -631,27 +717,58 @@ const renderBufferContent = (
 				}
 			}
 
+			// Get token type for syntax highlighting
+			const tokenType = tokenMap.get(`${lineIdx}:${colIdx}`);
+
+			// Determine color and style
+			let color: string | undefined;
 			if (isCursor) {
-				// Cursor has priority - show as inverse video
-				result += `\x1b[7m${char}\x1b[27m`;
+				// Cursor: inverse video (using ANSI code embedded in text)
+				segments.push({
+					text: `\x1b[7m${char}\x1b[27m`,
+					fg: undefined, // ANSI code handles rendering
+				});
 			} else if (isSelected) {
-				// Selection - show with background color
-				result += `\x1b[48;5;8m${char}\x1b[0m`;
+				// Selection: highlight color (using ANSI background code)
+				segments.push({
+					text: `\x1b[48;5;8m${char}\x1b[0m`,
+					fg: undefined, // ANSI code handles rendering
+				});
+			} else if (tokenType && syntaxColors) {
+				// Syntax highlighting: apply token color
+				const colorKey = tokenType as keyof typeof syntaxColors;
+				color = syntaxColors[colorKey];
+				segments.push({
+					text: char,
+					fg: color,
+				});
 			} else {
-				// Normal character
-				result += char;
+				// Normal text: default color
+				segments.push({
+					text: char,
+					fg: undefined,
+				});
 			}
 		}
 
 		// Handle cursor at end of line (beyond last character)
 		if (lineIdx === cursorPos.line && cursorPos.column >= line.length) {
-			result += `\x1b[7m \x1b[27m`;
+			segments.push({
+				text: `\x1b[7m \x1b[27m`,
+				fg: undefined,
+			});
 		}
 
-		return result;
+		// Add newline between lines (except after last line)
+		if (lineIdx < lines.length - 1) {
+			segments.push({
+				text: "\n",
+				fg: undefined,
+			});
+		}
 	});
 
-	return displayLines.join("\n");
+	return segments;
 };
 
 /**
@@ -667,17 +784,45 @@ const AppComponent: React.FC<{ state: AppState; uiConfig: UIConfigType }> = ({
 	}
 
 	const modeStyle = getModeStyle(state.modal.currentMode, uiConfig);
-	const bufferContent = renderBufferContent(
+	const syntaxColors = uiConfig.colors?.syntax;
+
+	const bufferSegments = renderBufferContent(
 		state.buffer.content || "// Welcome to Ctrl Editor\n",
 		state.modal.cursorPosition,
 		state.selection,
-		state.modal.currentMode
+		state.modal.currentMode,
+		state.syntax,
+		syntaxColors
 	);
+
+	// Build the buffer content from segments
+	// Group segments by line for proper rendering
+	const lineSegments: TextSegment[][] = [];
+	let currentLine: TextSegment[] = [];
+	for (const segment of bufferSegments) {
+		if (segment.text === "\n") {
+			lineSegments.push(currentLine);
+			currentLine = [];
+		} else {
+			currentLine.push(segment);
+		}
+	}
+	if (currentLine.length > 0) {
+		lineSegments.push(currentLine);
+	}
 
 	return (
 		<box width="100%" height="100%" flexDirection="column">
-			<box flexGrow={1} width="100%">
-				<text>{bufferContent}</text>
+			<box flexGrow={1} width="100%" flexDirection="column">
+				{lineSegments.map((lineSegs, lineIdx) => (
+					<box key={lineIdx} width="100%">
+						{lineSegs.map((segment, segIdx) => (
+							<text key={segIdx} fg={segment.fg}>
+								{segment.text}
+							</text>
+						))}
+					</box>
+				))}
 			</box>
 
 			{/* Status bar with mode indicator and cursor position */}
@@ -725,10 +870,27 @@ export const runApp = async (
 	// Create React root and render component
 	const root = createRoot(renderer);
 	let currentUiConfig = uiConfig;
+	let parseTimeout: ReturnType<typeof setTimeout> | null = null;
 
 	const render = () => {
 		root.render(<AppComponent state={currentState} uiConfig={currentUiConfig} />);
 	};
+
+	// Initial parse of buffer
+	const initialSyntax = await parseBufferSyntax(
+		initialState.buffer.content,
+		initialState.buffer.filePath,
+		initialState.buffer.language
+	);
+	if (initialSyntax) {
+		currentState = {
+			...currentState,
+			syntax: initialSyntax,
+		};
+		console.log(`✓ Syntax highlighting: parsed ${initialSyntax.tokens.length} tokens`);
+	} else {
+		console.log("⚠ Syntax highlighting: parser returned null or empty result");
+	}
 
 	render();
 
@@ -757,11 +919,31 @@ export const runApp = async (
 		}
 
 		// Handle keystroke for other keys
+		const oldBufferContent = currentState.buffer.content;
 		const newState = handleKeystroke(currentState, key, keyEvent);
 
 		if (newState !== currentState) {
 			currentState = newState;
 			render();
+
+			// Debounce re-parsing if buffer content changed
+			if (newState.buffer.content !== oldBufferContent) {
+				if (parseTimeout) clearTimeout(parseTimeout);
+				parseTimeout = setTimeout(async () => {
+					const updatedSyntax = await parseBufferSyntax(
+						currentState.buffer.content,
+						currentState.buffer.filePath,
+						currentState.buffer.language
+					);
+					if (updatedSyntax) {
+						currentState = {
+							...currentState,
+							syntax: updatedSyntax,
+						};
+						render();
+					}
+				}, 100); // Parse 100ms after last keystroke
+			}
 		}
 	});
 

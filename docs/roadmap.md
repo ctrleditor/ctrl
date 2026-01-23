@@ -16,21 +16,25 @@ Ctrl is the AI-native terminal editor for developers who want power without comp
 - ✅ Buffer text editing (insert, delete, navigate)
 - ✅ Config-driven UI styling
 - ✅ Command palette
-- 🔨 Basic syntax highlighting (coming week 2)
-- 🔨 AI chat (streaming) (coming week 2)
+- ✅ Syntax highlighting (per-token colored rendering, TypeScript/JavaScript)
+- ✅ Configuration-driven syntax colors (11 token types)
+- 🔨 Gogh theme integration (300+ color schemes) (starting now)
+- 🔨 AI chat (streaming) (coming this week)
 - ❌ LSP integration (Phase 2)
 - ❌ Plugin system (Phase 2)
 
 **Success Criteria:**
 - ✅ Working prototype
 - ✅ Can edit files with cursor, insert, delete
+- ✅ Syntax highlighting with colored tokens
+- 🔨 Gogh themes integrated
 - 🔨 AI chat works reliably (in progress)
 - 🔨 Demo-ready (3-min video) (in progress)
 
 **Audience:** None yet (internal only)
 
 **Timeline:** Jan 22 - Feb 5, 2026
-**Status:** Week 1 complete, core editing functional
+**Status:** Core editing + syntax highlighting complete, Gogh themes in progress
 
 ---
 
