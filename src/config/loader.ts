@@ -3,10 +3,9 @@
  * Reads and parses TOML config files
  */
 
-import { homedir } from "node:os";
-import { join } from "node:path";
-import { mergeWithDefaults, validateConfig } from "./schema";
-import type { ConfigType } from "./schema";
+import { homedir } from "bun:os";
+import { join } from "bun:path";
+import { type ConfigType, mergeWithDefaults, validateConfig } from "./schema";
 
 /**
  * Get config file path (~/.config/ctrl/config.toml)
@@ -67,8 +66,10 @@ const parseSimpleTOML = (content: string): Record<string, unknown> => {
 				value = true;
 			} else if (valueStr === "false") {
 				value = false;
-			} else if ((valueStr.startsWith('"') && valueStr.endsWith('"')) ||
-					   (valueStr.startsWith("'") && valueStr.endsWith("'"))) {
+			} else if (
+				(valueStr.startsWith('"') && valueStr.endsWith('"')) ||
+				(valueStr.startsWith("'") && valueStr.endsWith("'"))
+			) {
 				// Remove quotes
 				value = valueStr.slice(1, -1);
 			} else if (!Number.isNaN(Number(valueStr)) && valueStr !== "") {
@@ -92,7 +93,7 @@ const parseSimpleTOML = (content: string): Record<string, unknown> => {
  */
 export const loadConfig = async (): Promise<ConfigLoadResult> => {
 	const configPath = getConfigPath();
-	const { existsSync, readFileSync } = await import("node:fs");
+	const { existsSync, readFileSync } = await import("bun:fs");
 
 	try {
 		// Check if file exists
@@ -127,7 +128,7 @@ export const loadConfig = async (): Promise<ConfigLoadResult> => {
 		// TOML parse error or other issue
 		console.warn(
 			`Failed to load config from ${configPath}:`,
-			err instanceof Error ? err.message : err
+			err instanceof Error ? err.message : err,
 		);
 		return {
 			config: mergeWithDefaults({}),

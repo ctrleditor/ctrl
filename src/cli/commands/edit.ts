@@ -3,7 +3,7 @@
  * Using bunli CLI framework
  */
 
-import * as fs from "node:fs";
+import * as fs from "bun:fs";
 
 import { defineCommand, option } from "@bunli/core";
 import { z } from "zod";
