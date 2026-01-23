@@ -275,6 +275,9 @@ ctrl/
 │   ├── plugins/               # Plugin system (future)
 │   ├── ui/                    # Terminal UI (OpenTUI)
 │   │   ├── renderer.tsx       # React component rendering (text segments)
+│   │   ├── statusBar/         # Customizable status bar system
+│   │   │   ├── renderer.tsx   # StatusBar component and renderStatusBarComponent()
+│   │   │   └── index.ts       # Barrel export
 │   │   └── themes/            # Color schemes (Gogh integration)
 │   │       ├── types.ts       # GoghTheme interface, token mapping types
 │   │       ├── schemes.ts     # 5 bundled themes (dracula, nord, one-dark, etc)
@@ -311,6 +314,140 @@ ctrl/
 ├── README.md                 # User-facing README
 └── CHANGELOG.md              # Release notes
 ```
+
+## Customizable Status Bar
+
+The status bar is fully customizable via configuration. Users can define custom components and arrange them in left/center/right zones without any code changes.
+
+### Built-in Component Types
+
+**Mode Indicator**
+```toml
+[ui.statusBar.components.mode]
+type = "mode"
+# Optional per-mode colors
+[ui.statusBar.components.mode.colors]
+normal = "#88BB22"
+insert = "#22AAFF"
+visual = "#FF9922"
+command = "#FFFF00"
+```
+
+**File Path**
+```toml
+[ui.statusBar.components.filePath]
+type = "filePath"
+truncate = 50  # Truncate long paths to this width
+```
+
+**Cursor Position**
+```toml
+[ui.statusBar.components.position]
+type = "position"
+format = "Ln {line}, Col {col}"  # Use {line} and {col} placeholders
+```
+
+**Modified Indicator**
+```toml
+[ui.statusBar.components.modified]
+type = "modified"
+text = "[+]"
+fg = "#FF6B6B"
+```
+
+**File Size**
+```toml
+[ui.statusBar.components.fileSize]
+type = "fileSize"
+format = "human"  # Options: "bytes", "kb", "human"
+```
+
+**Line Count**
+```toml
+[ui.statusBar.components.lineCount]
+type = "lineCount"
+```
+
+**Static Text**
+```toml
+[ui.statusBar.components.separator]
+type = "text"
+text = " | "
+fg = "#666666"
+```
+
+**Git Branch** (placeholder, not yet implemented)
+```toml
+[ui.statusBar.components.branch]
+type = "gitBranch"
+ifExists = false  # Only show if in git repo
+```
+
+### Layout Configuration
+
+Define the status bar layout with left, center, and right zones:
+
+```toml
+[ui.statusBar]
+enabled = true
+height = 1
+backgroundColor = "#1a1a1a"
+
+# Define components (referenced by ID in layout below)
+[ui.statusBar.components.mode]
+type = "mode"
+
+[ui.statusBar.components.filePath]
+type = "filePath"
+truncate = 50
+
+[ui.statusBar.components.position]
+type = "position"
+format = "Ln {line}, Col {col}"
+
+# Layout with three zones
+[ui.statusBar.layout]
+left = ["mode"]
+center = ["filePath"]
+right = ["position"]
+```
+
+### Adding New Component Types (for Contributors)
+
+To add a new component type:
+
+1. **Update schema** (`src/config/schema.ts`):
+   ```typescript
+   z.object({
+     type: z.literal("myComponent"),
+     customProp: z.string().optional(),
+   })
+   ```
+
+2. **Add renderer** (`src/ui/statusBar/renderer.tsx`):
+   ```typescript
+   case "myComponent": {
+     return {
+       text: `My Output: ${state.buffer.content.length}`,
+       fg: "#FFFFFF",
+     };
+   }
+   ```
+
+3. **Add tests** (`test/statusBar.test.ts`):
+   ```typescript
+   it("should render myComponent", () => {
+     const result = renderStatusBarComponent("myComponent", component, state);
+     expect(result.text).toBe("My Output: 17");
+   });
+   ```
+
+### Implementation Details
+
+- **Pure function rendering**: `renderStatusBarComponent()` is a pure function that takes component definition, state, and returns `{text, fg?}`
+- **React layout**: `StatusBar` component uses OpenTUI flexbox to arrange zones (left aligned, center growing, right aligned)
+- **Performance**: Rendering happens every keystroke, should be < 1ms per component
+- **No side effects**: All component data comes from AppState, no API calls or file I/O
 
 ## Configuration
 

@@ -215,14 +215,15 @@ This preserves Ctrl-specific docs while updating core templates.
 **Project Name:** Ctrl
 **Repository:** https://github.com/ctrleditor/ctrl
 **Documentation:** Uses [CtrlSpec](https://github.com/ctrleditor/ctrlspec) templates
-**Status:** Core Editor Prototype - Theme System Complete
+**Status:** Core Editor Prototype - Fully Functional MVP
 
 ### What's Working ✅
-- Modal editing system (normal, insert, visual, command modes)
-- Buffer text editing (insert, delete, backspace, enter)
-- Vim-style hjkl navigation (h=left, j=down, k=up, l=right)
-- Config file loading from ~/.config/ctrl/config.toml (XDG compliant)
-- Config-driven UI colors and keybindings (TOML with Zod validation)
+- **Modal editing system** (normal, insert, visual, command modes)
+- **Buffer text editing** (insert, delete, backspace, enter with proper keybinds)
+- **Vim-style navigation** (h/j/k/l in normal mode, Ctrl+h/j/k/l in insert mode)
+- **Config file loading** from ~/.config/ctrl/config.toml (XDG compliant)
+- **Fully dynamic keybindings** - All keybinds come from config.toml (25+ commands)
+- **Config-driven UI colors** (TOML with Zod validation)
 - **Syntax highlighting** with per-token colored rendering (TypeScript/JavaScript)
 - **Asynchronous parsing** with tree-sitter (debounced 100ms)
 - **11 syntax token types** (keywords, strings, types, functions, comments, etc.)
@@ -231,23 +232,28 @@ This preserves Ctrl-specific docs while updating core templates.
 - **Ghostty auto-detection** - Auto-detects terminal theme from Ghostty config
 - **Per-token customization** - Override individual syntax colors in config
 - **Theme switching** - `/theme <name>` command for live theme switching
-- Command palette accessible via `/` in normal mode (AI-native feel)
-- Help menu (Ctrl+P) showing all keybindings
-- Clean exit (q, Ctrl+C, Ctrl+D) without shell artifacts
-- Cursor display with ANSI inverse video
-- React + OpenTUI rendering
+- **Command palette** - Accessible via `/` in normal mode (AI-native feel)
+- **Help menu** (Ctrl+P) showing all keybindings from config
+- **Text rendering** with proper OpenTUI span-based coloring (no jumping/wrapping)
+- **Clean exit** (q, Ctrl+C, Ctrl+D) without shell artifacts
+- **Cursor display** with visual feedback
+- **React + OpenTUI** rendering with proper layout
 
 ### Known Issues ⚠️
 - Keywords not yet captured by tree-sitter highlights query (will improve with LSP)
-- (Resolved) Theme system fully implemented with Gogh schemes
-- (Resolved) Config hot-reload now working with dual-mode file watcher
-- (Resolved) Visual mode selection fully implemented
+- (Resolved ✅) Text rendering - proper span-based coloring in OpenTUI
+- (Resolved ✅) Insert mode keybinds - all commands wired up
+- (Resolved ✅) Theme system fully implemented with Gogh schemes
+- (Resolved ✅) Config hot-reload working
+- (Resolved ✅) Visual mode selection fully implemented
 
-### Recent Implementation 🎯
-- **Fully Dynamic Keybind System** - All keybindings now come from config.toml
-- **Command Executor Pattern** - Pure command handlers for testability
-- **Keybind Matcher** - Parse and match keybind patterns (ctrl+c, shift+v, etc.)
-- **35 comprehensive tests** - Parsing, matching, execution, integration
+### Recent Fixes & Implementation 🎯
+- **Dynamic Keybind System** - All keybindings configured via config.toml
+- **Command Executor Pattern** - 25+ pure command handlers for testability
+- **Keybind Matcher** - Parse and match complex keybind patterns (ctrl+shift+c, etc.)
+- **Fixed Text Rendering** - Proper OpenTUI span-based coloring (no more jumping)
+- **Fixed Insert Mode** - Added return, backspace, Ctrl+hjkl keybinds
+- **50+ tests** - Syntax, themes, keybinds, rendering integration
 
 ### Next Phase 🔨
 1. **LSP Integration** - TypeScript language server for better highlighting

@@ -16,6 +16,7 @@ import { deleteRange, insertText } from "../core/buffer";
 import { closeHelpMenu, toggleHelpMenu } from "../core/modal";
 import { parseFileForHighlighting } from "../core/syntax/parser";
 import { executeCommand, findCommand } from "../core/commands";
+import { StatusBar } from "./statusBar";
 import type { AppState } from "../types/app";
 import type { Position, Selection } from "../types/index";
 import type { SyntaxHighlighting } from "../types/syntax";
@@ -238,62 +239,6 @@ const parseBufferSyntax = async (buffer: string, filePath: string, language: str
 	}
 };
 
-/**
- * Get mode-specific styling
- * Pure function: mode + config → style object
- */
-const getModeStyle = (
-	mode: string,
-	uiConfig: UIConfigType
-): { modeColor: string; backgroundColor: string; modeLabel: string } => {
-	const colors = uiConfig.colors || {};
-	const bgColor = colors.statusBarBg || "#1a1a1a";
-
-	switch (mode) {
-		case "normal":
-			return {
-				modeColor: colors.normalMode || "#88BB22",
-				backgroundColor: bgColor,
-				modeLabel: "NORMAL",
-			};
-		case "insert":
-			return {
-				modeColor: colors.insertMode || "#22AAFF",
-				backgroundColor: bgColor,
-				modeLabel: "INSERT",
-			};
-		case "visual":
-			return {
-				modeColor: colors.visualMode || "#FF9922",
-				backgroundColor: bgColor,
-				modeLabel: "VISUAL",
-			};
-		case "visual-line":
-			return {
-				modeColor: colors.visualMode || "#FF9922",
-				backgroundColor: bgColor,
-				modeLabel: "V-LINE",
-			};
-		case "visual-block":
-			return {
-				modeColor: colors.visualMode || "#FF9922",
-				backgroundColor: bgColor,
-				modeLabel: "V-BLOCK",
-			};
-		case "command":
-			return {
-				modeColor: colors.commandMode || "#FFFF00",
-				backgroundColor: bgColor,
-				modeLabel: "COMMAND",
-			};
-		default:
-			return {
-				modeColor: colors.textFg || "#FFFFFF",
-				backgroundColor: bgColor,
-				modeLabel: mode.toUpperCase(),
-			};
-	}
-};
 
 /**
  * Command palette component
@@ -488,7 +433,6 @@ const AppComponent: React.FC<{ state: AppState; uiConfig: UIConfigType }> = ({
 		return <HelpMenu keybinds={state.config.keybinds} />;
 	}
 
-	const modeStyle = getModeStyle(state.modal.currentMode, uiConfig);
 	const syntaxColors = uiConfig.colors?.syntax;
 
 	const bufferSegments = renderBufferContent(
@@ -534,17 +478,8 @@ const AppComponent: React.FC<{ state: AppState; uiConfig: UIConfigType }> = ({
 				))}
 			</box>
 
-			{/* Status bar with mode indicator and cursor position */}
-			<box width="100%" height={1} backgroundColor={modeStyle.backgroundColor} flexDirection="row">
-				<text fg={modeStyle.modeColor}>
-					{modeStyle.modeLabel}
-				</text>
-				<text>{" "}</text>
-				<text flexGrow={1}>{state.buffer.filePath}</text>
-				<text fg="#555555">
-					{`Ln ${state.modal.cursorPosition.line + 1}, Col ${state.modal.cursorPosition.column + 1}`}
-				</text>
-			</box>
+			{/* Status bar - customizable from config */}
+			{uiConfig.statusBar && <StatusBar state={state} config={uiConfig.statusBar} />}
 
 			{/* Command palette - only show in command mode */}
 			{state.modal.currentMode === "command" && (

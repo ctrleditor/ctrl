@@ -43,6 +43,73 @@ export const AIConfigSchema = z.object({
 export type AIConfigType = z.infer<typeof AIConfigSchema>;
 
 /**
+ * Status Bar Component configuration schema
+ */
+export const StatusBarComponentSchema = z.discriminatedUnion("type", [
+	z.object({
+		type: z.literal("mode"),
+		colors: z
+			.object({
+				normal: z.string().default("#88BB22"),
+				insert: z.string().default("#22AAFF"),
+				visual: z.string().default("#FF9922"),
+				visualLine: z.string().default("#FF9922"),
+				visualBlock: z.string().default("#FF9922"),
+				command: z.string().default("#FFFF00"),
+			})
+			.optional(),
+	}),
+	z.object({
+		type: z.literal("text"),
+		text: z.string(),
+		fg: z.string().optional(),
+		bg: z.string().optional(),
+	}),
+	z.object({
+		type: z.literal("filePath"),
+		truncate: z.number().int().min(5).default(50),
+	}),
+	z.object({
+		type: z.literal("position"),
+		format: z.string().default("Ln {line}, Col {col}"),
+	}),
+	z.object({
+		type: z.literal("modified"),
+		text: z.string().default("[+]"),
+		fg: z.string().optional(),
+	}),
+	z.object({
+		type: z.literal("gitBranch"),
+		ifExists: z.boolean().default(false),
+	}),
+	z.object({
+		type: z.literal("lineCount"),
+	}),
+	z.object({
+		type: z.literal("fileSize"),
+		format: z.enum(["bytes", "kb", "human"]).default("bytes"),
+	}),
+]);
+
+export type StatusBarComponentType = z.infer<typeof StatusBarComponentSchema>;
+
+export const StatusBarLayoutSchema = z.object({
+	enabled: z.boolean().default(true),
+	height: z.number().int().min(1).max(3).default(1),
+	backgroundColor: z.string().default("#1a1a1a"),
+	components: z.record(StatusBarComponentSchema).default({}),
+	layout: z
+		.object({
+			left: z.array(z.string()).default([]),
+			center: z.array(z.string()).default([]),
+			right: z.array(z.string()).default([]),
+		})
+		.default({}),
+});
+
+export type StatusBarLayoutType = z.infer<typeof StatusBarLayoutSchema>;
+
+/**
  * UI/Theme configuration schema
  */
 export const UIConfigSchema = z.object({
@@ -76,6 +143,7 @@ export const UIConfigSchema = z.object({
 		.optional(),
 	lineNumbers: z.boolean().default(true),
 	relativeLineNumbers: z.boolean().default(false),
+	statusBar: StatusBarLayoutSchema.optional(),
 });
 
 export type UIConfigType = z.infer<typeof UIConfigSchema>;
@@ -182,6 +250,21 @@ export const getConfigDefaults = (themeName?: string): ConfigType => {
 				statusBarBg: theme.uiColors.statusBarBg,
 				textFg: theme.uiColors.textFg,
 				syntax: theme.syntaxColors,
+			},
+			statusBar: {
+				enabled: true,
+				height: 1,
+				backgroundColor: theme.uiColors.statusBarBg,
+				components: {
+					mode: { type: "mode" as const },
+					filePath: { type: "filePath" as const, truncate: 50 },
+					position: { type: "position" as const, format: "Ln {line}, Col {col}" },
+				},
+				layout: {
+					left: ["mode"],
+					center: ["filePath"],
+					right: ["position"],
+				},
 			},
 		}),
 		keybinds: KeybindsSchema.parse({}),
