@@ -19,6 +19,8 @@ const runTests = async () => {
 		"test/theme-loading.test.ts",
 		"test/user-themes-ghostty.test.ts",
 		"test/gogh-schemes.test.ts",
+		"test/theme-command.test.ts",
+		"test/keybind-system.test.ts",
 	], {
 		stdout: "inherit",
 		stderr: "inherit",

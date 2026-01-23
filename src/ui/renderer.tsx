@@ -15,6 +15,7 @@ import type { KeybindsType, SyntaxColorsType, UIConfigType } from "../config/sch
 import { deleteRange, insertText } from "../core/buffer";
 import { closeHelpMenu, toggleHelpMenu } from "../core/modal";
 import { parseFileForHighlighting } from "../core/syntax/parser";
+import { executeCommand, findCommand } from "../core/commands";
 import type { AppState } from "../types/app";
 import type { Position, Selection } from "../types/index";
 import type { SyntaxHighlighting } from "../types/syntax";
@@ -37,10 +38,6 @@ export type KeystrokeHandler = (
 	keyEvent?: { ctrl?: boolean; shift?: boolean; meta?: boolean }
 ) => AppState;
 
-/**
- * Handle a keystroke and update app state
- * Pure function: state → new state
- */
 /**
  * Clamp cursor position to valid bounds within buffer
  */
@@ -112,404 +109,91 @@ const extractSelectionText = (buffer: string, sel: Selection): string => {
 export const handleKeystroke = (
 	state: AppState,
 	key: string,
-	keyEvent?: { ctrl?: boolean }
+	keyEvent?: { ctrl?: boolean; shift?: boolean; meta?: boolean }
 ): AppState => {
 	const { modal } = state;
 
-	// Check for help menu toggle (Ctrl+P) - works in any mode
-	if (keyEvent?.ctrl && key === "p") {
-		return {
-			...state,
-			modal: toggleHelpMenu(modal),
-		};
-	}
+	// Global commands (work in any mode)
+	const globalCommands = {
+		"ctrl+p": "toggle_help",
+		escape: modal.showHelpMenu ? "close_help" : undefined,
+	};
 
-	// Close help menu on Escape
-	if (key === "escape" && modal.showHelpMenu) {
-		return {
-			...state,
-			modal: closeHelpMenu(modal),
-		};
-	}
-
-	// Route based on current mode
-	if (modal.currentMode === "normal") {
-		// Normal mode: commands and navigation
-		if (key === "i") {
-			return {
-				...state,
-				modal: { ...modal, currentMode: "insert", previousMode: "normal" },
-			};
-		}
-		if (keyEvent?.ctrl && key === "v") {
-			// Enter visual-block mode (Ctrl+V)
-			return {
-				...state,
-				modal: { ...modal, currentMode: "visual-block", previousMode: "normal" },
-				selection: {
-					anchor: modal.cursorPosition,
-					active: modal.cursorPosition,
-				},
-			};
-		}
-		if (key === "V") {
-			// Enter visual-line mode (Shift+V)
-			const lineLength = getLineLength(state.buffer.content, modal.cursorPosition.line);
-			return {
-				...state,
-				modal: { ...modal, currentMode: "visual-line", previousMode: "normal" },
-				selection: {
-					anchor: { line: modal.cursorPosition.line, column: 0 },
-					active: { line: modal.cursorPosition.line, column: lineLength },
-				},
-			};
-		}
-		if (key === "v" && !keyEvent?.ctrl) {
-			// Enter visual mode (v)
-			return {
-				...state,
-				modal: { ...modal, currentMode: "visual", previousMode: "normal" },
-				selection: {
-					anchor: modal.cursorPosition,
-					active: modal.cursorPosition,
-				},
-			};
-		}
-		if (key === "/") {
-			return {
-				...state,
-				modal: {
-					...modal,
-					currentMode: "command",
-					previousMode: "normal",
-					commandBuffer: "",
-				},
-			};
-		}
-		// Vim-style navigation in normal mode (hjkl)
-		if (key === "k") {
-			const newPos = clampCursorPosition(
-				{ line: modal.cursorPosition.line - 1, column: modal.cursorPosition.column },
-				state.buffer.content
-			);
-			return { ...state, modal: { ...modal, cursorPosition: newPos } };
-		}
-		if (key === "j") {
-			const newPos = clampCursorPosition(
-				{ line: modal.cursorPosition.line + 1, column: modal.cursorPosition.column },
-				state.buffer.content
-			);
-			return { ...state, modal: { ...modal, cursorPosition: newPos } };
-		}
-		if (key === "h") {
-			const newPos = clampCursorPosition(
-				{ line: modal.cursorPosition.line, column: modal.cursorPosition.column - 1 },
-				state.buffer.content
-			);
-			return { ...state, modal: { ...modal, cursorPosition: newPos } };
-		}
-		if (key === "l") {
-			const newPos = clampCursorPosition(
-				{ line: modal.cursorPosition.line, column: modal.cursorPosition.column + 1 },
-				state.buffer.content
-			);
-			return { ...state, modal: { ...modal, cursorPosition: newPos } };
-		}
-		if (key === "p" && state.clipboard) {
-			// Paste clipboard content at cursor position
-			const newBuffer = insertText(state.buffer, modal.cursorPosition, state.clipboard);
-			return {
-				...state,
-				buffer: newBuffer,
-				modal: {
-					...modal,
-					cursorPosition: {
-						line: modal.cursorPosition.line,
-						column: modal.cursorPosition.column + state.clipboard.length,
-					},
-				},
-			};
+	// Check global commands
+	for (const [pattern, command] of Object.entries(globalCommands)) {
+		if (command && findCommand({ [pattern]: command }, key, keyEvent) === command) {
+			return executeCommand(command, state, {
+				key,
+				mode: modal.currentMode,
+				...keyEvent,
+			});
 		}
 	}
 
-	// Visual mode: navigation expands selection
-	if (isVisualMode(modal.currentMode)) {
-		if (key === "escape") {
-			// Exit visual mode and clear selection
-			return {
-				...state,
-				modal: { ...modal, currentMode: "normal", previousMode: modal.currentMode },
-				selection: null,
-			};
-		}
+	// Get keybinds for current mode
+	const modeKeybinds = state.config.keybinds?.[modal.currentMode as keyof typeof state.config.keybinds] ?? {};
 
-		// Delete selection with 'd'
-		if (key === "d" && state.selection) {
-			const { start, end } = normalizeSelection(state.selection);
+	// Try to find a command for this keystroke
+	const command = findCommand(modeKeybinds, key, keyEvent);
 
-			// Delete the selected range
-			const updatedBuffer = deleteRange(state.buffer, { start, end });
-
-			return {
-				...state,
-				buffer: updatedBuffer,
-				modal: {
-					...modal,
-					currentMode: "normal",
-					previousMode: modal.currentMode,
-					cursorPosition: start, // Move cursor to start of deleted range
-				},
-				selection: null,
-			};
-		}
-
-		// Yank (copy) selection with 'y'
-		if (key === "y" && state.selection) {
-			const selectedText = extractSelectionText(state.buffer.content, state.selection);
-
-			return {
-				...state,
-				clipboard: selectedText,
-				modal: {
-					...modal,
-					currentMode: "normal",
-					previousMode: modal.currentMode,
-				},
-				selection: null,
-			};
-		}
-
-		// hjkl navigation in visual mode
-		let newCursor: Position | null = null;
-
-		if (key === "h") {
-			newCursor = clampCursorPosition(
-				{ line: modal.cursorPosition.line, column: modal.cursorPosition.column - 1 },
-				state.buffer.content
-			);
-		} else if (key === "l") {
-			newCursor = clampCursorPosition(
-				{ line: modal.cursorPosition.line, column: modal.cursorPosition.column + 1 },
-				state.buffer.content
-			);
-		} else if (key === "j") {
-			newCursor = clampCursorPosition(
-				{ line: modal.cursorPosition.line + 1, column: modal.cursorPosition.column },
-				state.buffer.content
-			);
-		} else if (key === "k") {
-			newCursor = clampCursorPosition(
-				{ line: modal.cursorPosition.line - 1, column: modal.cursorPosition.column },
-				state.buffer.content
-			);
-		}
-
-		// If cursor moved, update selection
-		if (newCursor !== null) {
-			let newSelection: Selection | null = state.selection;
-
-			if (state.selection && modal.currentMode === "visual-line") {
-				// Visual-line mode: always select full lines
-				const anchorLine = state.selection.anchor.line;
-				const newCursorLine = newCursor.line;
-				const newLineLength = getLineLength(state.buffer.content, newCursorLine);
-
-				newSelection = {
-					anchor: { line: anchorLine, column: 0 },
-					active: { line: newCursorLine, column: newLineLength },
-				};
-			} else if (state.selection && modal.currentMode === "visual-block") {
-				// Visual-block mode: rectangular selection
-				const startLine = Math.min(state.selection.anchor.line, newCursor.line);
-				const endLine = Math.max(state.selection.anchor.line, newCursor.line);
-				const startCol = Math.min(state.selection.anchor.column, newCursor.column);
-				const endCol = Math.max(state.selection.anchor.column, newCursor.column);
-
-				// Store block selection metadata in anchor/active (simplified for now)
-				newSelection = {
-					anchor: { line: startLine, column: startCol },
-					active: { line: endLine, column: endCol },
-				};
-			} else if (state.selection) {
-				// Regular visual mode
-				newSelection = {
-					anchor: state.selection.anchor,
-					active: newCursor,
-				};
-			}
-
-			return {
-				...state,
-				modal: { ...modal, cursorPosition: newCursor },
-				selection: newSelection,
-			};
-		}
+	if (command) {
+		// Execute the command
+		return executeCommand(command, state, {
+			key,
+			mode: modal.currentMode,
+			...keyEvent,
+		});
 	}
 
+	// Handle text input (only in insert and command modes)
 	if (modal.currentMode === "insert") {
-		// Insert mode: text input
-		if (key === "escape") {
-			// Escape key - exit insert mode and clear any selection
-			return {
-				...state,
-				modal: { ...modal, currentMode: "normal", previousMode: "insert" },
-				selection: null,
-			};
-		}
-		// Vim-style navigation in insert mode with Ctrl prefix (Ctrl+hjkl)
-		if (keyEvent?.ctrl && key === "k") {
-			const newPos = clampCursorPosition(
-				{ line: modal.cursorPosition.line - 1, column: modal.cursorPosition.column },
-				state.buffer.content
-			);
-			return { ...state, modal: { ...modal, cursorPosition: newPos } };
-		}
-		if (keyEvent?.ctrl && key === "j") {
-			const newPos = clampCursorPosition(
-				{ line: modal.cursorPosition.line + 1, column: modal.cursorPosition.column },
-				state.buffer.content
-			);
-			return { ...state, modal: { ...modal, cursorPosition: newPos } };
-		}
-		if (keyEvent?.ctrl && key === "h") {
-			const newPos = clampCursorPosition(
-				{ line: modal.cursorPosition.line, column: modal.cursorPosition.column - 1 },
-				state.buffer.content
-			);
-			return { ...state, modal: { ...modal, cursorPosition: newPos } };
-		}
-		if (keyEvent?.ctrl && key === "l") {
-			const newPos = clampCursorPosition(
-				{ line: modal.cursorPosition.line, column: modal.cursorPosition.column + 1 },
-				state.buffer.content
-			);
-			return { ...state, modal: { ...modal, cursorPosition: newPos } };
-		}
-		if (key === "backspace") {
-			// Delete character before cursor
-			const { cursorPosition } = modal;
-			if (cursorPosition.column > 0 || cursorPosition.line > 0) {
-				// Calculate position of character to delete
-				const deletePos =
-					cursorPosition.column > 0
-						? { line: cursorPosition.line, column: cursorPosition.column - 1 }
-						: {
-								line: cursorPosition.line - 1,
-								column: state.buffer.content.split("\n")[cursorPosition.line - 1]?.length ?? 0,
-							};
-
-				const updatedBuffer = deleteRange(state.buffer, {
-					start: deletePos,
-					end: cursorPosition,
-				});
-
-				return {
-					...state,
-					buffer: updatedBuffer,
-					modal: {
-						...modal,
-						cursorPosition: deletePos,
-					},
-				};
-			}
-			return state;
-		}
-		if (key === "return") {
-			// Insert newline
-			const newBuffer = insertText(state.buffer, modal.cursorPosition, "\n");
-			return {
-				...state,
-				buffer: newBuffer,
-				modal: {
-					...modal,
-					cursorPosition: { line: modal.cursorPosition.line + 1, column: 0 },
-				},
-			};
-		}
-		if (key.length === 1 && /^[a-zA-Z0-9\s.,;:'"\-_[\]{}()=/\\|!@#$%^&*~`]$/.test(key)) {
-			// Regular character - insert into buffer at cursor position
-			const newBuffer = insertText(state.buffer, modal.cursorPosition, key);
-			return {
-				...state,
-				buffer: newBuffer,
-				modal: {
-					...modal,
-					cursorPosition: {
-						line: modal.cursorPosition.line,
-						column: modal.cursorPosition.column + 1,
-					},
-				},
-			};
-		}
+		return handleInsertModeInput(state, key);
 	}
 
 	if (modal.currentMode === "command") {
-		// Command mode
-		if (key === "escape") {
-			// Escape key - exit command mode
-			return {
-				...state,
-				modal: {
-					...modal,
-					currentMode: "normal",
-					previousMode: "command",
-					commandBuffer: "",
-				},
-			};
-		}
-		if (key === "return") {
-			// Execute command
-			const command = modal.commandBuffer.trim();
+		return handleCommandModeInput(state, key);
+	}
 
-			// Handle /theme <name> command
-			if (command.startsWith("theme ")) {
-				const themeName = command.slice(6).trim();
-				if (themeName) {
-					// Command executed - clear buffer and return to normal
-					// Note: Theme switching is handled in main app loop via config hot-reload
-					return {
-						...state,
-						modal: {
-							...modal,
-							currentMode: "normal",
-							previousMode: "command",
-							commandBuffer: "",
-						},
-					};
-				}
-			}
+	// No command matched and no text input - return state unchanged
+	return state;
+};
 
-			// Default: just clear and return to normal
-			return {
-				...state,
-				modal: {
-					...modal,
-					currentMode: "normal",
-					previousMode: "command",
-					commandBuffer: "",
+/**
+ * Handle text input in insert mode
+ */
+const handleInsertModeInput = (state: AppState, key: string): AppState => {
+	// Regular character - insert into buffer at cursor position
+	if (key.length === 1 && /^[a-zA-Z0-9\s.,;:'"\-_[\]{}()=/\\|!@#$%^&*~`]$/.test(key)) {
+		const newBuffer = insertText(state.buffer, state.modal.cursorPosition, key);
+		return {
+			...state,
+			buffer: newBuffer,
+			modal: {
+				...state.modal,
+				cursorPosition: {
+					line: state.modal.cursorPosition.line,
+					column: state.modal.cursorPosition.column + 1,
 				},
-			};
-		}
-		if (key === "backspace") {
-			// Remove last character from command buffer
-			return {
-				...state,
-				modal: {
-					...modal,
-					commandBuffer: modal.commandBuffer.slice(0, -1),
-				},
-			};
-		}
-		if (key.length === 1 && /^[a-zA-Z0-9\s.,;:'"\-_]$/.test(key)) {
-			// Add character to command buffer
-			return {
-				...state,
-				modal: {
-					...modal,
-					commandBuffer: modal.commandBuffer + key,
-				},
-			};
-		}
+			},
+		};
+	}
+
+	return state;
+};
+
+/**
+ * Handle text input in command mode
+ */
+const handleCommandModeInput = (state: AppState, key: string): AppState => {
+	// Add character to command buffer
+	if (key.length === 1 && /^[a-zA-Z0-9\s.,;:'"\-_]$/.test(key)) {
+		return {
+			...state,
+			modal: {
+				...state.modal,
+				commandBuffer: state.modal.commandBuffer + key,
+			},
+		};
 	}
 
 	return state;

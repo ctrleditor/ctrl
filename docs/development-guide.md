@@ -254,9 +254,11 @@ ctrl/
 │   │   │   ├── modal.ts       # Functions: createModalState, enterMode, etc
 │   │   │   └── index.ts       # Barrel export
 │   │   │
-│   │   ├── commands/          # Command registry
-│   │   │   ├── registry.ts    # registerCommand, executeCommand, etc
-│   │   │   └── index.ts       # Barrel export
+│   │   ├── commands/          # Command registry & keybind system
+│   │   │   ├── keybind-executor.ts  # Pure command handlers
+│   │   │   ├── keybind-matcher.ts   # Parse and match keybind patterns
+│   │   │   ├── registry.ts          # Command registry
+│   │   │   └── index.ts             # Barrel export
 │   │   │
 │   │   ├── syntax/            # Syntax highlighting
 │   │   │   ├── parser.ts      # Tree-sitter integration
