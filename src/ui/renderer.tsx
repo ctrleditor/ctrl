@@ -520,7 +520,7 @@ const AppComponent: React.FC<{ state: AppState; uiConfig: UIConfigType }> = ({
 		<box width="100%" height="100%" flexDirection="column">
 			<box flexGrow={1} width="100%" flexDirection="column">
 				{lineSegments.map((lineSegs, lineIdx) => (
-					<box key={lineIdx} width="100%">
+					<box key={lineIdx} width="100%" flexDirection="row" flexWrap="wrap">
 						{lineSegs.map((segment, segIdx) => (
 							<text key={segIdx} fg={segment.fg}>
 								{segment.text}
