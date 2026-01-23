@@ -273,7 +273,14 @@ ctrl/
 │   ├── plugins/               # Plugin system (future)
 │   ├── ui/                    # Terminal UI (OpenTUI)
 │   │   ├── renderer.tsx       # React component rendering (text segments)
-│   │   └── themes/            # Color schemes (Gogh integration, coming)
+│   │   └── themes/            # Color schemes (Gogh integration)
+│   │       ├── types.ts       # GoghTheme interface, token mapping types
+│   │       ├── schemes.ts     # 5 bundled themes (dracula, nord, one-dark, etc)
+│   │       ├── loader.ts      # loadCompleteTheme, color mapping functions
+│   │       ├── all-gogh-schemes.ts  # 50+ Gogh schemes (lazy-loaded)
+│   │       ├── ghostty.ts     # Ghostty config parser, auto-detection
+│   │       ├── user-themes.ts # Load custom themes from ~/.config/ctrl/themes/
+│   │       └── index.ts       # Barrel export
 │   │
 │   │
 │   ├── cli/                   # Command-line interface (bunli)

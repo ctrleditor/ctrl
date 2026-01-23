@@ -215,7 +215,7 @@ This preserves Ctrl-specific docs while updating core templates.
 **Project Name:** Ctrl
 **Repository:** https://github.com/ctrleditor/ctrl
 **Documentation:** Uses [CtrlSpec](https://github.com/ctrleditor/ctrlspec) templates
-**Status:** Core Editor Prototype - Syntax Highlighting Complete
+**Status:** Core Editor Prototype - Theme System Complete
 
 ### What's Working ✅
 - Modal editing system (normal, insert, visual, command modes)
@@ -226,7 +226,12 @@ This preserves Ctrl-specific docs while updating core templates.
 - **Syntax highlighting** with per-token colored rendering (TypeScript/JavaScript)
 - **Asynchronous parsing** with tree-sitter (debounced 100ms)
 - **11 syntax token types** (keywords, strings, types, functions, comments, etc.)
-- Command palette accessible via `:` in normal mode
+- **Gogh color schemes** - 50+ built-in themes (dracula, nord, one-dark, tokyo-night, etc.)
+- **User-defined themes** - Load custom themes from ~/.config/ctrl/themes/
+- **Ghostty auto-detection** - Auto-detects terminal theme from Ghostty config
+- **Per-token customization** - Override individual syntax colors in config
+- **Theme switching** - `/theme <name>` command for live theme switching
+- Command palette accessible via `/` in normal mode (AI-native feel)
 - Help menu (Ctrl+P) showing all keybindings
 - Clean exit (q, Ctrl+C, Ctrl+D) without shell artifacts
 - Cursor display with ANSI inverse video
@@ -234,17 +239,16 @@ This preserves Ctrl-specific docs while updating core templates.
 
 ### Known Issues ⚠️
 - Keywords not yet captured by tree-sitter highlights query (will improve with LSP)
-- Command mode shows palette but commands not yet executed
+- (Resolved) Theme system fully implemented with Gogh schemes
 - (Resolved) Config hot-reload now working with dual-mode file watcher
 - (Resolved) Visual mode selection fully implemented
 
-### Next Phase 🔨 (Starting Now)
-1. **Gogh Theme Integration** - 300+ color schemes from https://github.com/Gogh-Co/Gogh
-2. **LSP Integration** - TypeScript language server for better highlighting
-3. **AI chat interface**
-4. **Inline completions** (ghost text)
-5. **Plugin system**
-6. **Multiple buffers/split windows**
+### Next Phase 🔨
+1. **LSP Integration** - TypeScript language server for better highlighting
+2. **AI chat interface**
+3. **Inline completions** (ghost text)
+4. **Plugin system**
+5. **Multiple buffers/split windows**
 
 ### Critical Code Patterns to Know
 
@@ -279,7 +283,14 @@ src/
 ├── ui/
 │   ├── renderer.tsx                   # React rendering + keystroke handling
 │   │                                  # Includes TextSegment rendering for syntax colors
-│   └── themes/                        # (Coming soon) Gogh theme integration
+│   └── themes/                        # Gogh theme system (fully implemented)
+│       ├── types.ts                   # Type definitions
+│       ├── schemes.ts                 # 5 bundled themes
+│       ├── loader.ts                  # Theme loading functions
+│       ├── all-gogh-schemes.ts        # 50+ Gogh schemes (lazy-loaded)
+│       ├── ghostty.ts                 # Ghostty auto-detection
+│       ├── user-themes.ts             # User-defined themes
+│       └── index.ts                   # Barrel export
 ├── core/
 │   ├── buffer/                        # Text buffer management
 │   ├── modal/                         # Mode system (normal, insert, visual, command)

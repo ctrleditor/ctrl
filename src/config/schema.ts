@@ -4,7 +4,7 @@
  */
 
 import { z } from "zod";
-import { loadCompleteTheme } from "../ui/themes/index";
+import { loadCompleteTheme, detectGhosttyTheme, mapGhosttyTheme } from "../ui/themes/index";
 import { dracula } from "../ui/themes/schemes";
 
 /**
@@ -47,7 +47,7 @@ export type AIConfigType = z.infer<typeof AIConfigSchema>;
  */
 export const UIConfigSchema = z.object({
 	theme: z
-		.enum(["dracula", "nord", "one-dark", "solarized-dark", "monokai"])
+		.string()
 		.default("dracula"),
 	colors: z
 		.object({
@@ -59,17 +59,17 @@ export const UIConfigSchema = z.object({
 			textFg: z.string().default("#FFFFFF"),
 			syntax: z
 				.object({
-					keyword: z.string().default("#569CD6"),     // Blue
-					string: z.string().default("#CE9178"),      // Orange
-					number: z.string().default("#B5CEA8"),      // Green
-					comment: z.string().default("#6A9955"),     // Green
-					type: z.string().default("#4EC9B0"),        // Teal
-					function: z.string().default("#DCDCAA"),    // Yellow
-					variable: z.string().default("#9CDCFE"),    // Light blue
-					operator: z.string().default("#D4D4D4"),    // White
-					punctuation: z.string().default("#808080"), // Gray
-					constant: z.string().default("#4FC1FF"),    // Cyan
-					property: z.string().default("#9CDCFE"),    // Light blue
+					keyword: z.string().optional(),
+					string: z.string().optional(),
+					number: z.string().optional(),
+					comment: z.string().optional(),
+					type: z.string().optional(),
+					function: z.string().optional(),
+					variable: z.string().optional(),
+					operator: z.string().optional(),
+					punctuation: z.string().optional(),
+					constant: z.string().optional(),
+					property: z.string().optional(),
 				})
 				.optional(),
 		})
@@ -93,7 +93,7 @@ export const KeybindsSchema = z.object({
 	normal: z.record(z.string(), z.string()).default({
 		i: "enter_insert",
 		v: "enter_visual",
-		":": "enter_command",
+		"/": "enter_command",
 		h: "move_left",
 		j: "move_down",
 		k: "move_up",
@@ -156,17 +156,18 @@ type Result<T, E> =
 
 /**
  * Get defaults for configuration
- * Uses Dracula Gogh theme by default
+ * Uses Dracula Gogh theme by default, or auto-detected Ghostty theme if available
  */
-export const getConfigDefaults = (): ConfigType => {
-	// Load Dracula theme (default)
-	const theme = loadCompleteTheme("dracula");
+export const getConfigDefaults = (themeName?: string): ConfigType => {
+	// Use provided theme or default to dracula
+	const selectedTheme = themeName || "dracula";
+	const theme = loadCompleteTheme(selectedTheme);
 
 	return {
 		editor: EditorConfigSchema.parse({}),
 		ai: AIConfigSchema.parse({}),
 		ui: UIConfigSchema.parse({
-			theme: "dracula",
+			theme: selectedTheme,
 			colors: {
 				normalMode: theme.uiColors.normalMode,
 				insertMode: theme.uiColors.insertMode,
@@ -179,6 +180,28 @@ export const getConfigDefaults = (): ConfigType => {
 		}),
 		keybinds: KeybindsSchema.parse({}),
 	};
+};
+
+/**
+ * Get defaults with async theme detection (Ghostty)
+ * Detects theme from Ghostty config if available, falls back to dracula
+ */
+export const getConfigDefaultsWithDetection = async (): Promise<ConfigType> => {
+	let themeName = "dracula";
+
+	try {
+		const ghosttyTheme = await detectGhosttyTheme();
+		if (ghosttyTheme) {
+			const mappedTheme = mapGhosttyTheme(ghosttyTheme);
+			if (mappedTheme) {
+				themeName = mappedTheme;
+			}
+		}
+	} catch {
+		// Fall back to dracula if detection fails
+	}
+
+	return getConfigDefaults(themeName);
 };
 
 /**

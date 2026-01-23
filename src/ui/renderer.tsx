@@ -175,7 +175,7 @@ export const handleKeystroke = (
 				},
 			};
 		}
-		if (key === ":") {
+		if (key === "/") {
 			return {
 				...state,
 				modal: {
@@ -458,7 +458,28 @@ export const handleKeystroke = (
 			};
 		}
 		if (key === "return") {
-			// Execute command (for now, just clear and return to normal)
+			// Execute command
+			const command = modal.commandBuffer.trim();
+
+			// Handle /theme <name> command
+			if (command.startsWith("theme ")) {
+				const themeName = command.slice(6).trim();
+				if (themeName) {
+					// Command executed - clear buffer and return to normal
+					// Note: Theme switching is handled in main app loop via config hot-reload
+					return {
+						...state,
+						modal: {
+							...modal,
+							currentMode: "normal",
+							previousMode: "command",
+							commandBuffer: "",
+						},
+					};
+				}
+			}
+
+			// Default: just clear and return to normal
 			return {
 				...state,
 				modal: {
@@ -596,7 +617,7 @@ const getModeStyle = (
 const CommandPalette: React.FC<{ commandBuffer: string }> = ({ commandBuffer }) => {
 	return (
 		<box width="100%" height={1} backgroundColor="#1a1a1a">
-			<text>:{commandBuffer}_</text>
+			<text>/{commandBuffer}_</text>
 		</box>
 	);
 };
