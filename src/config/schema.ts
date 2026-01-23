@@ -4,6 +4,8 @@
  */
 
 import { z } from "zod";
+import { loadCompleteTheme } from "../ui/themes/index";
+import { dracula } from "../ui/themes/schemes";
 
 /**
  * Editor configuration schema
@@ -44,6 +46,9 @@ export type AIConfigType = z.infer<typeof AIConfigSchema>;
  * UI/Theme configuration schema
  */
 export const UIConfigSchema = z.object({
+	theme: z
+		.enum(["dracula", "nord", "one-dark", "solarized-dark", "monokai"])
+		.default("dracula"),
 	colors: z
 		.object({
 			normalMode: z.string().default("#88BB22"),
@@ -151,36 +156,30 @@ type Result<T, E> =
 
 /**
  * Get defaults for configuration
- * Useful when partial config is provided
+ * Uses Dracula Gogh theme by default
  */
-export const getConfigDefaults = (): ConfigType => ({
-	editor: EditorConfigSchema.parse({}),
-	ai: AIConfigSchema.parse({}),
-	ui: UIConfigSchema.parse({
-		colors: {
-			normalMode: "#88BB22",
-			insertMode: "#22AAFF",
-			visualMode: "#FF9922",
-			commandMode: "#FFFF00",
-			statusBarBg: "#1a1a1a",
-			textFg: "#FFFFFF",
-			syntax: {
-				keyword: "#569CD6",
-				string: "#CE9178",
-				number: "#B5CEA8",
-				comment: "#6A9955",
-				type: "#4EC9B0",
-				function: "#DCDCAA",
-				variable: "#9CDCFE",
-				operator: "#D4D4D4",
-				punctuation: "#808080",
-				constant: "#4FC1FF",
-				property: "#9CDCFE",
+export const getConfigDefaults = (): ConfigType => {
+	// Load Dracula theme (default)
+	const theme = loadCompleteTheme("dracula");
+
+	return {
+		editor: EditorConfigSchema.parse({}),
+		ai: AIConfigSchema.parse({}),
+		ui: UIConfigSchema.parse({
+			theme: "dracula",
+			colors: {
+				normalMode: theme.uiColors.normalMode,
+				insertMode: theme.uiColors.insertMode,
+				visualMode: theme.uiColors.visualMode,
+				commandMode: theme.uiColors.commandMode,
+				statusBarBg: theme.uiColors.statusBarBg,
+				textFg: theme.uiColors.textFg,
+				syntax: theme.syntaxColors,
 			},
-		},
-	}),
-	keybinds: KeybindsSchema.parse({}),
-});
+		}),
+		keybinds: KeybindsSchema.parse({}),
+	};
+};
 
 /**
  * Merge partial config with defaults

@@ -32,16 +32,18 @@ describe("TextSegment Rendering", () => {
 	it("should handle syntax colors in configuration", async () => {
 		// Import config schema to verify syntax colors are available
 		const configModule = await import("../src/config/schema.ts");
+		const themesModule = await import("../src/ui/themes/index.ts");
 
 		// Get defaults
 		const defaults = configModule.getConfigDefaults();
 
-		// Verify syntax colors are present
+		// Verify syntax colors are present and come from Dracula theme
 		expect(defaults.ui.colors?.syntax).toBeDefined();
-		expect(defaults.ui.colors?.syntax?.keyword).toBe("#569CD6");
-		expect(defaults.ui.colors?.syntax?.string).toBe("#CE9178");
-		expect(defaults.ui.colors?.syntax?.type).toBe("#4EC9B0");
-		expect(defaults.ui.colors?.syntax?.function).toBe("#DCDCAA");
+		const drakulaSyntax = themesModule.loadThemeSyntaxColors("dracula");
+		expect(defaults.ui.colors?.syntax?.keyword).toBe(drakulaSyntax.keyword);
+		expect(defaults.ui.colors?.syntax?.string).toBe(drakulaSyntax.string);
+		expect(defaults.ui.colors?.syntax?.type).toBe(drakulaSyntax.type);
+		expect(defaults.ui.colors?.syntax?.function).toBe(drakulaSyntax.function);
 	});
 
 	it("should have all syntax color token types defined", async () => {
