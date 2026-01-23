@@ -535,12 +535,14 @@ const AppComponent: React.FC<{ state: AppState; uiConfig: UIConfigType }> = ({
 			</box>
 
 			{/* Status bar with mode indicator and cursor position */}
-			<box width="100%" height={1} backgroundColor={modeStyle.backgroundColor}>
-				<text fg={modeStyle.modeColor}>{modeStyle.modeLabel}</text>
-				<text> | {state.buffer.filePath}</text>
-				<text fg="#888888">
-					{" "}
-					| {state.modal.cursorPosition.line}:{state.modal.cursorPosition.column}
+			<box width="100%" height={1} backgroundColor={modeStyle.backgroundColor} flexDirection="row">
+				<text fg={modeStyle.modeColor}>
+					{modeStyle.modeLabel}
+				</text>
+				<text>{" "}</text>
+				<text flexGrow={1}>{state.buffer.filePath}</text>
+				<text fg="#555555">
+					{`Ln ${state.modal.cursorPosition.line + 1}, Col ${state.modal.cursorPosition.column + 1}`}
 				</text>
 			</box>
 
